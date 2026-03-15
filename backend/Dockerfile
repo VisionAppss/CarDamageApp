@@ -1,20 +1,27 @@
+# backend/Dockerfile
+# Лёгкий образ Python 3.11 на Alpine Linux
+
 FROM python:3.11-alpine
 
+# Рабочая директория
 WORKDIR /app
 
-# Ростелеком — проверенное зеркало
-RUN echo "https://mirror.rt.ru/alpine/v3.18/main" > /etc/apk/repositories && \
-    echo "https://mirror.rt.ru/alpine/v3.18/community" >> /etc/apk/repositories && \
-    apk update && \
-    apk add --no-cache gcc musl-dev python3-dev libffi-dev openssl-dev
+# Системные зависимости
+RUN apk add --no-cache gcc musl-dev
 
+# Копируем зависимости
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Копируем код
 COPY main.py .
 COPY config.ini .
+
+# Папка для загрузок
 RUN mkdir -p /app/uploads
 
+# Порт API
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Запуск
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
