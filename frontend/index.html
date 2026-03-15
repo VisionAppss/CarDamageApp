@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarDamage Pro — Анализ повреждений автомобиля</title>
+    <style>
+        /* === БАЗОВЫЕ СТИЛИ === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        /* === ХЕДЕР === */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        
+        /* === КАРТОЧКА ЗАГРУЗКИ === */
+        .upload-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+        
+        /* === ЗОНА ЗАГРУЗКИ === */
+        .upload-zone {
+            border: 3px dashed #cbd5e1;
+            border-radius: 16px;
+            padding: 50px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .upload-zone:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+        }
+        
+        .upload-zone:hover::before {
+            opacity: 1;
+        }
+        
+        .upload-zone.active {
+            border-color: #764ba2;
+            background: #f3e8ff;
+            transform: scale(1.02);
+        }
+        
+        .upload-zone.dragover {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+        
+        .upload-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+            display: block;
+        }
+        
+        .upload-text {
+            color: #1f2937;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .upload-hint {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        /* === ПРЕВЬЮ ФОТО === */
+        .preview-section {
+            margin-top: 24px;
+            display: none;
+        }
+        
+        .preview-section.visible {
+            display: block;
+            animation: fadeIn 0.4s ease-out;
+        }
+        
+        .preview-container {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .preview-image {
+            width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+            background: #1f2937;
+            display: block;
+        }
+        
+        .preview-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding: 20px;
+            color: white;
+        }
+        
+        .file-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+        }
+        
+        .remove-file {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+        
+        .remove-file:hover {
+            background: rgba(239, 68, 68, 0.8);
+        }
+        
+        /* === ТИП ОСМОТРА === */
+        .inspection-type {
+            margin-top: 20px;
+        }
+        
+        .inspection-type label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .inspection-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 15px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        
+        .inspection-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        /* === КНОПКА АНАЛИЗА === */
+        .analyze-btn {
+            width: 100%;
+            padding: 16px;
+            margin-top: 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .analyze-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .analyze-btn:hover:not(:disabled)::after {
+            left: 100%;
+        }
+        
+        .analyze-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .analyze-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .analyze-btn.analyzing {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+        }
+        
+        /* === ЗАГРУЗКА === */
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 24px;
+            padding: 30px;
+            background: #f8fafc;
+            border-radius: 12px;
+        }
+        
+        .loading.visible {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        .loading-text {
+            color: #374151;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .loading-subtext {
+            color: #6b7280;
+            font-size: 13px;
+        }
+        
+        .loading-steps {
+            margin-top: 20px;
+            text-align: left;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .loading-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            color: #9ca3af;
+            font-size: 14px;
+            transition: color 0.3s;
+        }
+        
+        .loading-step.active {
+            color: #667eea;
+            font-weight: 500;
+        }
+        
+        .loading-step.done {
+            color: #10b981;
+        }
+        
+        .step-icon {
+            width: 20px;
+            text-align: center;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* === ОШИБКА === */
+        .error {
+            display: none;
+            margin-top: 20px;
+            padding: 16px;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        
+        .error.visible {
+            display: block;
+            animation: shake 0.5s;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        /* === РЕЗУЛЬТАТ === */
+        .result-container {
+            display: none;
+            margin-top: 24px;
+        }
+        
+        .result-container.visible {
+            display: block;
+            animation: slideUp 0.5s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* === ИНФО О МАШИНЕ === */
+        .vehicle-card {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 10px 30px rgba(30, 58, 95, 0.3);
+        }
+        
+        .vehicle-icon {
+            font-size: 48px;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        }
+        
+        .vehicle-info h3 {
+            font-size: 22px;
+            margin: 0 0 4px 0;
+            font-weight: 700;
+        }
+        
+        .vehicle-info .details {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 8px;
+        }
+        
+        .confidence-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .confidence-high { background: #dcfce7; color: #166534; }
+        .confidence-medium { background: #fef3c7; color: #92400e; }
+        .confidence-low { background: #fee2e2; color: #991b1b; }
+        
+        /* === КАЧЕСТВО ФОТО === */
+        .quality-alert {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            color: #9a3412;
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .quality-alert.quality-poor {
+            background: #fee2e2;
+            border-color: #fecaca;
+            color: #991b1b;
+        }
+        
+        /* === ПОВРЕЖДЕНИЯ === */
+        .damages-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .damages-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        
+        .damages-count {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .damage-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+            animation: cardSlide 0.4s ease-out forwards;
+            opacity: 0;
+        }
+        
+        .damage-card:hover {
+            transform: translateX(6px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+        }
+        
+        .damage-card.severity-cosmetic { border-left-color: #10b981; }
+        .damage-card.severity-minor { border-left-color: #f59e0b; }
+        .damage-card.severity-moderate { border-left-color: #f97316; }
+        .damage-card.severity-severe { border-left-color: #ef4444; }
+        .damage-card.severity-critical { border-left-color: #7f1d1d; }
+        
+        @keyframes cardSlide {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .damage-card:nth-child(1) { animation-delay: 0.1s; }
+        .damage-card:nth-child(2) { animation-delay: 0.2s; }
+        .damage-card:nth-child(3) { animation-delay: 0.3s; }
+        .damage-card:nth-child(4) { animation-delay: 0.4s; }
+        .damage-card:nth-child(5) { animation-delay: 0.5s; }
+        
+        .damage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        
+        .damage-type {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 15px;
+            color: #1f2937;
+        }
+        
+        .damage-location {
+            font-size: 12px;
+            color: #6b7280;
+            background: #f3f4f6;
+            padding: 4px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        
+        .damage-description {
+            font-size: 14px;
+            color: #4b5563;
+            margin-bottom: 12px;
+            line-height: 1.5;
+        }
+        
+        .damage-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .damage-tag {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .tag-size { background: #f3f4f6; color: #374151; }
+        .tag-method { background: #dbeafe; color: #1e40af; }
+        .tag-severity-cosmetic { background: #d1fae5; color: #065f46; }
+        .tag-severity-minor { background: #fef3c7; color: #92400e; }
+        .tag-severity-moderate { background: #ffedd5; color: #9a3412; }
+        .tag-severity-severe { background: #fee2e2; color: #991b1b; }
+        .tag-severity-critical { background: #fecaca; color: #7f1d1d; }
+        
+        .damage-cost {
+            font-size: 20px;
+            font-weight: 800;
+            color: #dc2626;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+        
+        .damage-cost::before {
+            content: '≈';
+            font-size: 14px;
+            color: #9ca3af;
+            font-weight: 400;
+        }
+        
+        /* === ИТОГОВАЯ СУММА === */
+        .summary-box {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+        }
+        
+        .summary-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+        }
+        
+        .summary-row:last-child {
+            border-bottom: none;
+            padding-top: 16px;
+            margin-top: 8px;
+        }
+        
+        .summary-label {
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .summary-value {
+            color: #334155;
+            font-weight: 600;
+        }
+        
+        .summary-total {
+            font-size: 24px;
+            font-weight: 800;
+            color: #dc2626;
+        }
+        
+        .drivable-yes { color: #10b981; }
+        .drivable-no { color: #ef4444; }
+        .drivable-unknown { color: #f59e0b; }
+        
+        /* === РЕКОМЕНДАЦИИ === */
+        .recommendations {
+            margin-top: 20px;
+            padding: 20px;
+            background: #eff6ff;
+            border-radius: 12px;
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .recommendations-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .recommendations-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .recommendations-list li {
+            padding: 8px 0 8px 28px;
+            position: relative;
+            color: #1e40af;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .recommendations-list li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #3b82f6;
+            font-weight: 700;
+        }
+        
+        /* === КНОПКИ ДЕЙСТВИЙ === */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+        }
+        
+        .btn-secondary:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        
+        /* === МЕТА ИНФО === */
+        .meta-info {
+            margin-top: 20px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 10px;
+            font-size: 12px;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        /* === АДАПТИВ === */
+        @media (max-width: 640px) {
+            .upload-card {
+                padding: 24px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .vehicle-card {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .damage-header {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .damage-location {
+                align-self: flex-start;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+        
+        /* === ПУСТОЕ СОСТОЯНИЕ === */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        /* === ИСТОРИЯ === */
+        .history-link {
+            text-align: center;
+            margin-top: 16px;
+        }
+        
+        .history-link a {
+            color: white;
+            opacity: 0.8;
+            text-decoration: none;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+        
+        .history-link a:hover {
+            opacity: 1;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Хедер -->
+        <div class="header">
+            <h1>🔍 CarDamage Pro</h1>
+            <p>Профессиональный анализ повреждений автомобиля ИИ</p>
+        </div>
+        
+        <!-- Карточка загрузки -->
+        <div class="upload-card">
+            <!-- Зона загрузки -->
+            <div class="upload-zone" id="uploadZone">
+                <span class="upload-icon">📷</span>
+                <div class="upload-text">Нажмите или перетащите фото сюда</div>
+                <div class="upload-hint">JPG, PNG, WebP • До 10 МБ • Хорошее освещение</div>
+                <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+            </div>
+            
+            <!-- Превью -->
+            <div class="preview-section" id="previewSection">
+                <div class="preview-container">
+                    <img class="preview-image" id="previewImage" alt="Превью автомобиля">
+                    <div class="preview-overlay">
+                        <div class="file-info">
+                            <span id="fileName">filename.jpg</span>
+                            <span id="fileSize">2.4 MB</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="remove-file" onclick="removeFile()">✕ Удалить</button>
+            </div>
+            
+            <!-- Тип осмотра -->
+            <div class="inspection-type">
+                <label for="inspectionType">Тип осмотра</label>
+                <select class="inspection-select" id="inspectionType">
+                    <option value="страховой случай">🛡️ Страховой случай (ДТП)</option>
+                    <option value="предпродажная оценка">💰 Предпродажная оценка</option>
+                    <option value="плановый осмотр">🔧 Плановый осмотр</option>
+                    <option value="оценка ремонта">📝 Оценка стоимости ремонта</option>
+                </select>
+            </div>
+            
+            <!-- Кнопка анализа -->
+            <button class="analyze-btn" id="analyzeBtn" disabled>
+                <span>🚀 Анализировать повреждения</span>
+            </button>
+            
+            <!-- Индикатор загрузки -->
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div class="loading-text">Анализируем фото...</div>
+                <div class="loading-subtext">Нейросеть изучает повреждения</div>
+                <div class="loading-steps">
+                    <div class="loading-step active" id="step1">
+                        <span class="step-icon">🖼️</span>
+                        <span>Загрузка изображения</span>
+                    </div>
+                    <div class="loading-step" id="step2">
+                        <span class="step-icon">🔍</span>
+                        <span>Распознавание деталей</span>
+                    </div>
+                    <div class="loading-step" id="step3">
+                        <span class="step-icon">🧠</span>
+                        <span>Анализ повреждений</span>
+                    </div>
+                    <div class="loading-step" id="step4">
+                        <span class="step-icon">💰</span>
+                        <span>Расчёт стоимости</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ошибка -->
+            <div class="error" id="error"></div>
+            
+            <!-- Результат -->
+            <div class="result-container" id="result">
+                <!-- Здесь будет динамический контент -->
+            </div>
+        </div>
+        
+        <!-- Ссылка на историю -->
+        <div class="history-link">
+            <a href="#" onclick="alert('История будет доступна в следующей версии')">📋 История осмотров</a>
+        </div>
+    </div>
+
+    <script>
+        // === DOM ЭЛЕМЕНТЫ ===
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const previewSection = document.getElementById('previewSection');
+        const previewImage = document.getElementById('previewImage');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const result = document.getElementById('result');
+        const inspectionType = document.getElementById('inspectionType');
+
+        let currentFile = null;
+
+        // === ОБРАБОТЧИКИ ЗАГРУЗКИ ===
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length) handleFile(files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        // === ОБРАБОТКА ФАЙЛА ===
+
+        function handleFile(file) {
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showError('Пожалуйста, выберите изображение (JPG, PNG или WebP)');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                showError('Файл слишком большой. Максимальный размер: 10 МБ');
+                return;
+            }
+
+            if (file.size < 10 * 1024) {
+                showError('Файл слишком маленький. Минимальный размер: 10 КБ');
+                return;
+            }
+
+            currentFile = file;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+                
+                previewSection.classList.add('visible');
+                uploadZone.style.display = 'none';
+                analyzeBtn.disabled = false;
+                hideError();
+                hideResult();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeFile() {
+            currentFile = null;
+            fileInput.value = '';
+            previewSection.classList.remove('visible');
+            uploadZone.style.display = 'block';
+            analyzeBtn.disabled = true;
+            hideResult();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        // === АНИМАЦИЯ ШАГОВ ЗАГРУЗКИ ===
+
+        function updateLoadingStep(step) {
+            for (let i = 1; i <= 4; i++) {
+                const el = document.getElementById(`step${i}`);
+                el.classList.remove('active', 'done');
+                if (i < step) el.classList.add('done');
+                else if (i === step) el.classList.add('active');
+            }
+        }
+
+        // === ОТПРАВКА НА АНАЛИЗ ===
+
+        analyzeBtn.addEventListener('click', async () => {
+            if (!currentFile) return;
+
+            loading.classList.add('visible');
+            analyzeBtn.disabled = true;
+            analyzeBtn.classList.add('analyzing');
+            hideError();
+            hideResult();
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('inspection_type', inspectionType.value);
+
+            // Анимация шагов
+            let step = 1;
+            updateLoadingStep(step);
+            const stepInterval = setInterval(() => {
+                if (step < 4) {
+                    step++;
+                    updateLoadingStep(step);
+                }
+            }, 2000);
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                clearInterval(stepInterval);
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Ошибка сервера');
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderResult(data.data);
+                } else {
+                    throw new Error('Неизвестная ошибка');
+                }
+
+            } catch (err) {
+                showError('Ошибка: ' + err.message);
+            } finally {
+                loading.classList.remove('visible');
+                analyzeBtn.disabled = false;
+                analyzeBtn.classList.remove('analyzing');
+                clearInterval(stepInterval);
+            }
+        });
+
+        // === РЕНДЕР РЕЗУЛЬТАТА ===
+
+        function renderResult(data) {
+            const vehicle = data.vehicle;
+            const damages = data.damages;
+            const summary = data.summary;
+            const meta = data.meta;
+
+            const html = `
+                <div class="vehicle-card">
+                    <div class="vehicle-icon">🚗</div>
+                    <div class="vehicle-info">
+                        <h3>${escapeHtml(vehicle.make || 'Не определено')} ${escapeHtml(vehicle.model || '')} ${vehicle.year || ''}</h3>
+                        <div class="details">${getVehicleDetails(vehicle)}</div>
+                        <span class="confidence-badge confidence-${getConfidenceLevel(vehicle.confidence)}">
+                            ${getConfidenceIcon(vehicle.confidence)} Уверенность определения: ${vehicle.confidence}%
+                        </span>
+                    </div>
+                </div>
+
+                ${meta.photo_quality !== 'good' ? `
+                    <div class="quality-alert ${meta.photo_quality === 'poor' ? 'quality-poor' : ''}">
+                        <span>⚠️</span>
+                        <div>
+                            <strong>Качество фото: ${meta.photo_quality === 'fair' ? 'среднее' : 'низкое'}</strong>
+                            ${meta.missing_angles.length ? `<br>Рекомендуем добавить ракурсы: ${meta.missing_angles.join(', ')}` : ''}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="damages-header">
+                    <div class="damages-title">🔍 Обнаруженные повреждения</div>
+                    <span class="damages-count">${damages.length}</span>
+                </div>
+                
+                ${damages.map((damage, index) => `
+                    <div class="damage-card severity-${damage.severity}" style="animation-delay: ${index * 0.1}s">
+                        <div class="damage-header">
+                            <div class="damage-type">
+                                ${getDamageEmoji(damage.type)} 
+                                ${getDamageTypeLabel(damage.type)}
+                            </div>
+                            <span class="damage-location">${escapeHtml(damage.location)}</span>
+                        </div>
+                        <div class="damage-description">${escapeHtml(damage.description)}</div>
+                        <div class="damage-tags">
+                            ${damage.size_cm2 ? `<span class="damage-tag tag-size">📐 ${damage.size_cm2} см²</span>` : ''}
+                            <span class="damage-tag tag-method">🔧 ${damage.repair_method}</span>
+                            <span class="damage-tag tag-severity-${damage.severity}">${getSeverityLabel(damage.severity)}</span>
+                        </div>
+                        <div class="damage-cost">
+                            ${formatCurrency(damage.estimated_cost_rub.min)} — ${formatCurrency(damage.estimated_cost_rub.max)}
+                        </div>
+                    </div>
+                `).join('')}
+
+                <div class="summary-box">
+                    <div class="summary-title">📊 Итоговая оценка</div>
+                    <div class="summary-row">
+                        <span class="summary-label">⏱️ Срок ремонта</span>
+                        <span class="summary-value">${escapeHtml(summary.repair_time_days)}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">🚗 На ходу</span>
+                        <span class="summary-value ${getDrivableClass(summary.drivable)}">
+                            ${getDrivableLabel(summary.drivable)}
+                        </span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">👁️ Требуется осмотр</span>
+                        <span class="summary-value">${summary.requires_in_person_inspection ? 'Да, рекомендуется' : 'Нет'}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">🎯 Уверенность анализа</span>
+                        <span class="summary-value">${meta.analysis_confidence}%</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">💰 ИТОГОВАЯ СТОИМОСТЬ</span>
+                        <span class="summary-total">${formatCurrency(summary.total_estimated_cost.min)} — ${formatCurrency(summary.total_estimated_cost.max)}</span>
+                    </div>
+                </div>
+
+                ${summary.recommendations.length ? `
+                    <div class="recommendations">
+                        <div class="recommendations-title">💡 Рекомендации эксперта</div>
+                        <ul class="recommendations-list">
+                            ${summary.recommendations.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="window.print()">
+                        🖨️ Печать отчёта
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetForm()">
+                        🔄 Новый анализ
+                    </button>
+                </div>
+
+                <div class="meta-info">
+                    <span>Модель: ${data.model_used || 'YandexGPT'}</span>
+                    <span>Токенов: ${data.tokens_used || '—'}</span>
+                    <span>${new Date(data.processed_at).toLocaleString('ru-RU')}</span>
+                </div>
+            `;
+            
+            result.innerHTML = html;
+            result.classList.add('visible');
+            
+            // Плавная прокрутка к результату
+            result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // === ХЕЛПЕРЫ ===
+
+        function getConfidenceLevel(confidence) {
+            if (confidence >= 80) return 'high';
+            if (confidence >= 50) return 'medium';
+            return 'low';
+        }
+
+        function getConfidenceIcon(confidence) {
+            if (confidence >= 80) return '✓';
+            if (confidence >= 50) return '~';
+            return '?';
+        }
+
+        function getDamageEmoji(type) {
+            const emojis = {
+                'scratch': '⚡',
+                'dent': '🔨',
+                'crack': '💔',
+                'deformation': '↪️',
+                'corrosion': '🟤',
+                'other': '⚠️'
+            };
+            return emojis[type] || '⚠️';
+        }
+
+        function getDamageTypeLabel(type) {
+            const labels = {
+                'scratch': 'Царапина',
+                'dent': 'Вмятина',
+                'crack': 'Трещина',
+                'deformation': 'Деформация',
+                'corrosion': 'Коррозия',
+                'other': 'Другое'
+            };
+            return labels[type] || type;
+        }
+
+        function getSeverityLabel(severity) {
+            const labels = {
+                'cosmetic': '✨ Косметическое',
+                'minor': '🟡 Незначительное',
+                'moderate': '🟠 Среднее',
+                'severe': '🔴 Серьёзное',
+                'critical': '⛔ Критическое'
+            };
+            return labels[severity] || severity;
+        }
+
+        function getDrivableClass(drivable) {
+            if (drivable === true) return 'drivable-yes';
+            if (drivable === false) return 'drivable-no';
+            return 'drivable-unknown';
+        }
+
+        function getDrivableLabel(drivable) {
+            if (drivable === true) return '✅ Да';
+            if (drivable === false) return '❌ Нет';
+            return '⚠️ Неизвестно';
+        }
+
+        function getVehicleDetails(vehicle) {
+            const parts = [];
+            if (vehicle.year) parts.push(`Год выпуска: ${vehicle.year}`);
+            return parts.join(' • ') || 'Детали не определены';
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('ru-RU', {
+                style: 'currency',
+                currency: 'RUB',
+                maximumFractionDigits: 0
+            }).format(amount);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // === УТИЛИТЫ UI ===
+
+        function showError(msg) {
+            error.innerHTML = `<strong>Ошибка:</strong> ${escapeHtml(msg)}`;
+            error.classList.add('visible');
+        }
+
+        function hideError() {
+            error.classList.remove('visible');
+        }
+
+        function hideResult() {
+            result.classList.remove('visible');
+            result.innerHTML = '';
+        }
+
+        function resetForm() {
+            removeFile();
+            hideResult();
+            hideError();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // === ИНИЦИАЛИЗАЦИЯ ===
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚗 CarDamage Pro загружен');
+        });
+    </script>
+</body>
+</html>

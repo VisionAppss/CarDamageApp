@@ -1,0 +1,31 @@
+# docker-compose.yml
+# Главный файл оркестрации — запускает бэкенд и фронтенд вместе
+
+version: '3.8'
+
+services:
+  # === БЭКЕНД ===
+  backend:
+    build: ./backend          # Собираем из папки backend/
+    container_name: car-backend
+    ports:
+      - "8000:8000"          # API доступен на порту 8000
+    volumes:
+      # Монтируем config.ini из хоста (чтобы не хранить ключи в образе)
+      - ./backend/config.ini:/app/config.ini:ro
+      # Временная папка для загруженных фото
+      - ./uploads:/app/uploads
+    environment:
+      # Переменные окружения (переопределяют config.ini если нужно)
+      - UPLOAD_DIR=/app/uploads
+    restart: unless-stopped
+
+  # === ФРОНТЕНД ===
+  frontend:
+    build: ./frontend         # Собираем из папки frontend/
+    container_name: car-frontend
+    ports:
+      - "80:80"              # Сайт доступен на стандартном порту 80
+    depends_on:
+      - backend              # Ждём запуска бэкенда
+    restart: unless-stopped
