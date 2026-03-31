@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+
+  # === БАЗА ДАННЫХ ===
+  db:
+    image: postgres:16-alpine
+    container_name: car-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: avtootsenka
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d avtootsenka"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # === БЭКЕНД ===
+  backend:
+    build: ./backend
+    container_name: car-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/config.ini:/app/config.ini:ro
+      - ./uploads:/app/uploads
+    environment:
+      - UPLOAD_DIR=/app/uploads
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=avtootsenka
+      - DB_USER=appuser
+      - DB_PASSWORD=${DB_PASSWORD}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # === ФРОНТЕНД ===
+  frontend:
+    build: ./frontend
+    container_name: car-frontend
+    ports:
+      - "4000:80"
+      - "443:443"
+    volumes:
+      - /etc/ssl/car-scan.ru.crt:/etc/ssl/car-scan.ru.crt:ro
+      - /etc/ssl/car-scan.ru.key:/etc/ssl/car-scan.ru.key:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

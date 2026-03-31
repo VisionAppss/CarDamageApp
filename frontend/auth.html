@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>АвтоСкан — Вход</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black:         #181818;
+      --white:         #ffffff;
+      --border:        rgba(24,24,24,0.15);
+      --border-strong: rgba(24,24,24,1.0);
+      --muted:         #888888;
+      --surface:       #FAFAFA;
+      --c-green:       #10b981;
+      --c-red:         #ef4444;
+      --c-accent:      #FF5722;
+    }
+
+    html { font-size: 14px; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #f2f2f0;
+      color: var(--black);
+      min-height: 100vh;
+      padding: 0;
+      line-height: 1.5;
+    }
+
+    .page {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 16px 64px;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 48px 0 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+    .header-inner { display: flex; justify-content: space-between; align-items: flex-end; }
+    .logo { font-size: 28px; font-weight: 400; letter-spacing: -2px; color: var(--black); line-height: 1; }
+    .logo span { color: var(--c-accent); }
+    .tagline { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      padding: 24px;
+    }
+    .card-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      font-weight: 500;
+      margin-bottom: 20px;
+    }
+
+    /* ── Screens ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .auth-grid { display: grid; gap: 1px; }
+
+    /* ── Fields ── */
+    .field { margin-bottom: 20px; }
+    .field-label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .field input[type="email"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-strong);
+      font-family: inherit;
+      font-size: 14px;
+      background: var(--white);
+      color: var(--black);
+      outline: none;
+    }
+    .field input[type="email"]:focus {
+      outline: 2px solid var(--black);
+      outline-offset: -2px;
+    }
+    .field input[type="email"].error {
+      outline: 2px solid var(--c-red);
+      outline-offset: -2px;
+    }
+    .field input[type="email"]::placeholder { color: #ccc; }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      width: 100%;
+      height: 52px;
+      background: var(--black);
+      color: var(--white);
+      border: 1px solid var(--black);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 400;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: 0.82; }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-link {
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      transition: color 0.15s;
+    }
+    .btn-link:hover { color: var(--black); }
+
+    /* ── Error ── */
+    .error-box { display: none; margin-bottom: 16px; border: 1px solid var(--c-red); padding: 10px 12px; background: #fef2f2; }
+    .error-box.visible { display: block; }
+    .error-box p { font-size: 13px; color: var(--c-red); }
+
+    /* ── Hint row ── */
+    .hint-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .timer-val { color: var(--black); font-weight: 500; }
+
+    /* ── Success ── */
+    .success-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      padding: 48px 24px;
+      text-align: center;
+    }
+    .success-mark {
+      font-size: 28px;
+      font-weight: 400;
+      color: var(--c-green);
+      margin-bottom: 14px;
+    }
+    .success-title { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+    .success-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+    .progress-bar { height: 2px; background: var(--border); overflow: hidden; }
+    .progress-fill {
+      height: 100%;
+      background: var(--black);
+      animation: progressFill 2s linear forwards;
+    }
+    @keyframes progressFill { from { width: 0; } to { width: 100%; } }
+
+    /* ── Footnote ── */
+    .footnote {
+      text-align: center;
+      font-size: 11px;
+      color: #bbb;
+      margin-top: 24px;
+      line-height: 1.9;
+    }
+    .footnote a {
+      color: var(--muted);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      transition: color 0.15s;
+    }
+    .footnote a:hover { color: var(--black); }
+    .footnote .sep { margin: 0 6px; color: #ddd; }
+
+    /* ── Consent modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-overlay.visible { display: flex; }
+    @media (min-width: 600px) {
+      .modal-overlay { align-items: center; padding: 20px; }
+    }
+
+    .modal {
+      background: var(--white);
+      width: 100%;
+      max-width: 560px;
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-strong);
+      animation: modalUp 0.2s ease-out;
+    }
+    @keyframes modalUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .modal-title { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+    .modal-sub { font-size: 12px; color: var(--muted); }
+
+    .modal-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .modal-tab {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-family: inherit;
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .modal-tab:hover { color: var(--black); }
+    .modal-tab.active { color: var(--black); border-bottom-color: var(--black); font-weight: 600; }
+
+    .modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+    .modal-body::-webkit-scrollbar { width: 3px; }
+    .modal-body::-webkit-scrollbar-track { background: #f5f5f5; }
+    .modal-body::-webkit-scrollbar-thumb { background: #ccc; }
+
+    .doc { display: none; }
+    .doc.active { display: block; }
+    .doc h3 {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--muted); margin: 16px 0 6px;
+    }
+    .doc h3:first-child { margin-top: 0; }
+    .doc p { font-size: 13px; color: #444; margin-bottom: 8px; line-height: 1.6; }
+    .doc ul { padding-left: 16px; margin-bottom: 8px; }
+    .doc ul li { font-size: 13px; color: #444; margin-bottom: 4px; line-height: 1.5; }
+
+    .modal-footer { padding: 16px 24px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
+
+    .consent-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+    .consent-item { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+    .consent-item input[type="checkbox"] {
+      width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px;
+      accent-color: var(--black); cursor: pointer;
+    }
+    .consent-text { font-size: 13px; color: #444; line-height: 1.5; }
+    .consent-text a { color: var(--black); text-decoration: underline; text-underline-offset: 2px; }
+
+    .consent-err { display: none; font-size: 12px; color: var(--c-red); margin-bottom: 12px; }
+    .consent-err.visible { display: block; }
+
+    /* ── Mobile ── */
+    @media (max-width: 480px) {
+      .header { padding-top: 32px; }
+      .logo { font-size: 22px; }
+      .otp-cell { height: 48px; font-size: 17px; }
+      .btn-primary{
+        flex:none
+      }
+      .btn-outline{
+        flex:none
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header class="header">
+    <div class="header-inner">
+      <div>
+        <div class="logo">АВТО<span>СКАН</span></div>
+        <div class="tagline">Анализ повреждений по фотографии · ИИ</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="auth-grid">
+
+    <!-- Screen 1: Email -->
+    <div class="card screen active" id="screen-email">
+      <div class="card-label">Вход / Регистрация</div>
+
+      <div class="error-box" id="emailError"><p id="emailErrorText"></p></div>
+
+      <div class="field">
+        <label class="field-label" for="emailInput">Email адрес</label>
+        <input type="email" id="emailInput" placeholder="example@mail.ru" autocomplete="email" autofocus>
+      </div>
+
+      <button class="btn-primary" id="sendCodeBtn" onclick="handleSendCode()">
+        Получить ссылку →
+      </button>
+
+      <div class="hint-row">
+        <span>Ссылка для входа придёт на почту</span>
+      </div>
+    </div>
+
+    <!-- Screen 2: Link sent -->
+    <div class="card screen" id="screen-sent">
+      <div class="card-label">Проверьте почту</div>
+      <div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:20px">
+        Мы отправили ссылку для входа на<br>
+        <strong id="sentEmail" style="color:#181818"></strong>
+        <br><br>
+        Нажмите на ссылку в письме — и вы войдёте автоматически.<br>
+        Письмо может прийти в течение 1–2 минут.
+      </div>
+      <div class="hint-row" style="margin-top:0">
+        <span id="timerBlock">Отправить повторно через <span class="timer-val" id="timerVal">60</span> с</span>
+        <button class="btn-link" id="resendBtn" style="display:none" onclick="handleResend()">Отправить снова</button>
+        <button class="btn-link" onclick="goBack()">← Изменить email</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Screen 3: Success -->
+  <div class="success-card" id="screen-success" style="display:none">
+    <div class="success-mark">✓</div>
+    <div class="success-title">Вход выполнен</div>
+    <div class="success-sub">Загружаем приложение…</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+
+  <div class="footnote">
+    Оценка носит предварительный характер. Для точного расчёта рекомендуем очный осмотр.
+    <br>
+    <a href="/terms" target="_blank">Terms of Use</a><span class="sep">·</span><a href="/privacy" target="_blank">Privacy Policy</a>
+  </div>
+
+</div>
+
+<!-- Consent modal -->
+<div class="modal-overlay" id="consentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Прежде чем начать</div>
+      <div class="modal-sub">Ознакомьтесь с документами и подтвердите согласие</div>
+    </div>
+
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-privacy" onclick="switchTab('privacy')">Конфиденциальность</button>
+      <button class="modal-tab" id="tab-terms" onclick="switchTab('terms')">Обработка данных</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="doc active" id="doc-privacy">
+        <h3>1. Общие положения</h3>
+        <p>Оператор сервиса АвтоСкан обязуется обеспечивать защиту персональных данных пользователей в соответствии с ФЗ-152 «О персональных данных».</p>
+        <h3>2. Собираемые данные</h3>
+        <ul>
+          <li>Email-адрес для идентификации и уведомлений</li>
+          <li>Загружаемые фотографии транспортных средств</li>
+          <li>История запросов и результаты анализа</li>
+          <li>Технические данные: IP-адрес, тип устройства, браузер</li>
+        </ul>
+        <h3>3. Цели обработки</h3>
+        <p>Данные используются исключительно для предоставления услуг по анализу повреждений и улучшения качества нейросетевых моделей.</p>
+        <h3>4. Сроки хранения</h3>
+        <p>Фотографии хранятся не более 30 дней после обработки. Email и история запросов — до момента удаления аккаунта.</p>
+        <h3>5. Передача третьим лицам</h3>
+        <p>Мы не продаём и не передаём данные третьим лицам. YandexGPT обрабатывает изображения согласно политике Яндекса.</p>
+        <h3>6. Права пользователя</h3>
+        <p>Запрос на копию, исправление или удаление данных: <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7c0c0e150a1d1f053c1d0a081313080f1912171d520e09">[email&#160;protected]</a></strong></p>
+      </div>
+
+      <div class="doc" id="doc-terms">
+        <h3>1. Предмет соглашения</h3>
+        <p>Настоящее соглашение регулирует использование сервиса АвтоСкан для автоматической оценки повреждений ТС на основе фотографий.</p>
+        <h3>2. Ограничения ответственности</h3>
+        <p>Результаты анализа носят <strong>информационный характер</strong> и не являются официальной технической экспертизой. Оператор не несёт ответственности за решения на основе данных сервиса.</p>
+        <h3>3. Правила использования</h3>
+        <ul>
+          <li>Загружать фото только собственных или доверенных ТС</li>
+          <li>Не использовать сервис для мошеннических целей</li>
+          <li>Соблюдать авторские права на загружаемые материалы</li>
+        </ul>
+        <h3>4. Интеллектуальная собственность</h3>
+        <p>Результаты анализа принадлежат пользователю. Алгоритмы и модели — собственность Оператора.</p>
+        <h3>5. Изменение условий</h3>
+        <p>Оператор вправе изменять условия, уведомляя пользователей по email не менее чем за 7 дней.</p>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <div class="consent-list">
+        <label class="consent-item">
+          <input type="checkbox" id="chkPrivacy">
+          <div class="consent-text">
+            Я прочитал(-а) и принимаю <a href="#" onclick="switchTab('privacy');return false">Политику конфиденциальности</a>
+          </div>
+        </label>
+        <label class="consent-item">
+          <input type="checkbox" id="chkTerms">
+          <div class="consent-text">
+            Я даю согласие на <a href="#" onclick="switchTab('terms');return false">обработку персональных данных</a>
+          </div>
+        </label>
+      </div>
+      <div class="consent-err" id="consentErr">Необходимо принять оба соглашения</div>
+      <button class="btn-primary" onclick="acceptConsent()">Принять и продолжить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Supabase JS -->
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  // ── Supabase init ──
+  const SUPABASE_URL  = 'https://bxeyrsaovexzkzfdrxym.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4ZXlyc2FvdmV4emt6ZmRyeHltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzY2MTIsImV4cCI6MjA5MDIxMjYxMn0.hvCuqm5iBwG0aaKjFc6QrIgQuWZt1PtuZoyv3jWEkj4';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // ── Handle magic link callback OR redirect if already logged in ──
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      window.location.href = '/';
+    }
+  });
+
+  sb.auth.getSession().then(({ data }) => {
+    if (data.session) window.location.href = '/';
+  });
+
+  let currentEmail = '', pendingEmail = '', timerInterval = null;
+
+  const $ = id => document.getElementById(id);
+  function isEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s); }
+  function showErr(id, msg) { $(id+'Text').textContent = msg; $(id).classList.add('visible'); }
+  function hideErr(id) { $(id).classList.remove('visible'); }
+
+  function showScreen(name) {
+    if (name === 'success') {
+      document.querySelector('.auth-grid').style.display = 'none';
+      $('screen-success').style.display = 'block';
+      setTimeout(() => { window.location.href = '/'; }, 2200);
+      return;
+    }
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    $('screen-' + name).classList.add('active');
+  }
+
+  // ── Email ──
+  async function handleSendCode() {
+    const val = $('emailInput').value.trim();
+    hideErr('emailError');
+    $('emailInput').classList.remove('error');
+    if (!val) { showErr('emailError', 'Введите email адрес'); $('emailInput').classList.add('error'); return; }
+    if (!isEmail(val)) { showErr('emailError', 'Некорректный email адрес'); $('emailInput').classList.add('error'); return; }
+
+    const btn = $('sendCodeBtn');
+    btn.disabled = true; btn.textContent = 'Проверяем…';
+
+    // Проверяем есть ли пользователь в БД — через публичный поиск по email в profiles
+    // Используем Edge Function или просто проверяем через попытку signInWithOtp
+    // Надёжный способ: смотрим есть ли email в таблице profiles (нужна открытая политика на чтение email)
+    let isNew = true;
+    try {
+      const { data } = await sb
+        .from('profiles')
+        .select('id')
+        .eq('email', val)
+        .maybeSingle();
+      isNew = !data; // если нашли запись — пользователь уже есть
+    } catch(e) {
+      isNew = true; // при ошибке — на всякий случай показываем согласие
+    }
+
+    btn.disabled = false; btn.textContent = 'Получить ссылку →';
+
+    if (isNew) {
+      pendingEmail = val;
+      $('consentModal').classList.add('visible');
+    } else {
+      doSendCode(val);
+    }
+  }
+
+  async function doSendCode(email) {
+    currentEmail = email;
+    const btn = $('sendCodeBtn');
+    btn.disabled = true; btn.textContent = 'Отправляем…';
+
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: window.location.origin + '/?auth=callback'
+      }
+    });
+
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Получить ссылку →';
+      showErr('emailError', 'Ошибка отправки: ' + error.message);
+      return;
+    }
+
+    // Показываем экран ожидания — ссылка отправлена
+    $('sentEmail').textContent = email;
+    showScreen('sent');
+    btn.disabled = false; btn.textContent = 'Получить ссылку →';
+  }
+
+  $('emailInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleSendCode();
+    $('emailInput').classList.remove('error');
+  });
+
+  function goBack() {
+    clearInterval(timerInterval);
+    showScreen('email');
+    $('emailInput').value = '';
+  }
+
+  // ── Timer ──
+  function startTimer() {
+    let s=60;
+    $('timerBlock').style.display='inline'; $('resendBtn').style.display='none'; $('timerVal').textContent=s;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      $('timerVal').textContent = --s;
+      if (s<=0) { clearInterval(timerInterval); $('timerBlock').style.display='none'; $('resendBtn').style.display='inline'; }
+    }, 1000);
+  }
+
+  async function handleResend() {
+    resetOtp(); hideErr('otpError');
+    await sb.auth.signInWithOtp({ email: currentEmail, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + '/?auth=callback' } });
+    startTimer();
+  }
+
+  // ── Consent ──
+  function switchTab(t) {
+    document.querySelectorAll('.modal-tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.doc').forEach(x=>x.classList.remove('active'));
+    $('tab-'+t).classList.add('active'); $('doc-'+t).classList.add('active');
+  }
+
+  function acceptConsent() {
+    if (!$('chkPrivacy').checked || !$('chkTerms').checked) { $('consentErr').classList.add('visible'); return; }
+    $('consentErr').classList.remove('visible');
+    $('consentModal').classLis

@@ -1,0 +1,17 @@
+# frontend/Dockerfile
+# Nginx для раздачи статики
+
+FROM nginx:alpine
+
+# Копируем HTML
+COPY index.html /usr/share/nginx/html/
+RUN chmod 644 /usr/share/nginx/html/index.html
+COPY auth.html /usr/share/nginx/html/
+RUN chmod 644 /usr/share/nginx/html/auth.html
+
+# Копируем конфиг nginx
+COPY icons/ /usr/share/nginx/html/icons/
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Порт
+EXPOSE 80

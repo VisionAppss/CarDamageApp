@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>АвтоСкан — Анализ повреждений</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <meta name="theme-color" content="#111111">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black:   #181818;
+      --white:   #ffffff;
+      --border:  rgba(24,24,24,0.15);
+      --border-strong: rgba(24,24,24,1.0);
+      --muted:   #888888;
+      --surface: #FAFAFA;
+      --c-green:   #10b981;
+      --c-yellow:  #f59e0b;
+      --c-orange:  #f97316;
+      --c-red:     #ef4444;
+      --c-crimson: #7f1d1d;
+      --c-accent:  #FF5722;
+    }
+
+    html { font-size: 14px; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #f2f2f0;
+      color: var(--black);
+      min-height: 100vh;
+      padding: 0;
+      line-height: 1.5;
+      visibility: hidden; /* скрыто до проверки авторизации */
+    }
+
+    /* ── Layout ── */
+    .page {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 16px 64px;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 48px 0 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+    .header-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .logo {
+      font-size: 28px;
+      font-weight: 400;
+      letter-spacing: -2px;
+      color: var(--black);
+      line-height: 1;
+    }
+    .logo span { color: var(--c-accent); }
+    .tagline {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+      letter-spacing: 0;
+    }
+    .header-actions { display: flex; gap: 8px; }
+    .btn-ghost {
+      background: none;
+      border: 1px solid var(--border-strong);
+      padding: 8px 14px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--black);
+      transition: background 0.15s;
+    }
+    .btn-ghost:hover { background: var(--black); color: var(--white); }
+
+    /* ── Card ── */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      padding: 24px;
+      margin-bottom: 1px;
+    }
+    .card:first-of-type { border-bottom: none; }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 1px dashed rgba(24,24,24,0.3);
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      background: var(--surface);
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .upload-zone:hover { border-color: var(--black); }
+    .upload-zone.dragover { border-color: var(--black); background: #f0f0f0; }
+    .upload-zone input[type=file] { display: none; }
+
+    .upload-icon {
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: center;
+    }
+    .upload-icon svg { opacity: 0.5; }
+    .upload-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--black);
+      margin-bottom: 6px;
+    }
+    .upload-hint { font-size: 12px; color: var(--muted); }
+
+    /* ── Preview ── */
+    .preview-wrap { display: none; position: relative; }
+    .preview-wrap.visible { display: block; }
+    .preview-wrap img {
+      width: 100%;
+      max-height: 320px;
+      object-fit: cover;
+      display: block;
+      background: #111;
+    }
+    .preview-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0 0;
+    }
+    .preview-name { font-size: 12px; color: var(--muted); }
+    .btn-remove {
+      background: none;
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      font-size: 11px;
+      font-family: inherit;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .btn-remove:hover { border-color: var(--c-red); color: var(--c-red); }
+
+    /* ── Select ── */
+    .field { margin-top: 20px; }
+    .field-label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .field select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-strong);
+      font-family: inherit;
+      font-size: 14px;
+      background: var(--white);
+      color: var(--black);
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23181818' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+    .field select:focus { outline: 2px solid var(--black); outline-offset: -2px; }
+
+    /* ── Analyze button ── */
+    .btn-analyze {
+      width: 100%;
+      height: 52px;
+      margin-top: 20px;
+      background: var(--black);
+      color: var(--white);
+      border: 1px solid var(--black);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 400;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      letter-spacing: 0;
+    }
+    .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-analyze:hover:not(:disabled) { opacity: 0.85; }
+
+    /* ── Error ── */
+    .error-box {
+      display: none;
+      margin-top: 16px;
+      border: 1px solid var(--c-red);
+      padding: 12px;
+      background: #fef2f2;
+    }
+    .error-box.visible { display: block; }
+    .error-box p { font-size: 13px; color: var(--c-red); }
+
+    /* ── Loading ── */
+    .loading-box {
+      display: none;
+      margin-top: 16px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .loading-box.visible { display: block; }
+    .loading-title {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .steps { display: flex; flex-direction: column; gap: 10px; }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #ccc;
+      transition: color 0.3s;
+    }
+    .step.active { color: var(--black); }
+    .step.done { color: var(--muted); }
+    .step-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+    .step.active .step-dot {
+      background: var(--black);
+      animation: pulse 1s ease-in-out infinite;
+    }
+    .step.done .step-dot { background: var(--muted); }
+    @keyframes pulse {
+      0%,100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.5); opacity: 0.5; }
+    }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    /* ── Result ── */
+    .result-wrap { display: none; margin-top: 1px; }
+    .result-wrap.visible { display: block; }
+
+    /* Vehicle card */
+    .vehicle-card {
+      background: var(--black);
+      color: var(--white);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 1px;
+    }
+    .vehicle-icon svg { opacity: 0.6; flex-shrink: 0; }
+    .vehicle-name { font-size: 16px; font-weight: 500; line-height: 1.3; }
+    .vehicle-meta { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+    .confidence-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 8px;
+      padding: 3px 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      font-size: 11px;
+      color: rgba(255,255,255,0.7);
+    }
+    .confidence-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+    }
+
+    /* Quality alert */
+    .quality-alert {
+      border: 1px solid #f59e0b;
+      background: #fffbeb;
+      padding: 12px 16px;
+      margin-bottom: 1px;
+      font-size: 13px;
+      color: var(--black);
+    }
+    .quality-alert.poor { border-color: var(--c-red); background: #fef2f2; }
+    .quality-alert strong { font-weight: 500; }
+    .quality-hint { color: var(--muted); font-size: 12px; margin-top: 3px; }
+
+    /* Section header */
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-bottom: none;
+    }
+    .section-head-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .count-badge {
+      width: 22px; height: 22px;
+      background: var(--black);
+      color: var(--white);
+      font-size: 11px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* Damage card */
+    .damage-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-left-width: 3px;
+      padding: 16px;
+      margin-bottom: 1px;
+      transition: transform 0.2s;
+    }
+    .damage-card:hover { transform: translateX(3px); }
+    .damage-card.severity-cosmetic  { border-left-color: var(--c-green); }
+    .damage-card.severity-minor     { border-left-color: var(--c-yellow); }
+    .damage-card.severity-moderate  { border-left-color: var(--c-orange); }
+    .damage-card.severity-severe    { border-left-color: var(--c-red); }
+    .damage-card.severity-critical  { border-left-color: var(--c-crimson); }
+
+    .dmg-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .dmg-type { font-size: 14px; font-weight: 500; color: var(--black); }
+    .dmg-severity {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-width: 1px;
+      border-style: solid;
+    }
+    .dmg-location { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .dmg-description { font-size: 13px; color: #444; line-height: 1.5; margin-bottom: 10px; }
+
+    .dmg-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      color: #555;
+    }
+
+    .dmg-cost-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .dmg-cost-label { font-size: 12px; color: var(--muted); }
+    .dmg-cost-value { font-size: 14px; font-weight: 600; color: var(--black); }
+
+    /* Summary */
+    .summary-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      margin-bottom: 1px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row.total {
+      padding: 16px;
+      border-top: 2px solid var(--black);
+    }
+    .sum-label { color: var(--muted); }
+    .sum-value { font-weight: 500; color: var(--black); }
+    .sum-total { font-size: 16px; font-weight: 600; color: var(--black); }
+
+    /* Recommendations */
+    .rec-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--black);
+      padding: 16px;
+      margin-bottom: 1px;
+    }
+    .rec-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+    .rec-list li {
+      display: flex;
+      gap: 10px;
+      font-size: 13px;
+      color: #444;
+      line-height: 1.5;
+    }
+    .rec-list li::before {
+      content: '—';
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    /* Meta */
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 12px 0;
+      font-size: 11px;
+      color: #bbb;
+    }
+
+    /* Actions */
+    .action-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .btn-primary {
+      flex: 1;
+      height: 52px;
+      background: var(--black);
+      color: var(--white);
+      border: 1px solid var(--black);
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-outline {
+      flex: 1;
+      height: 52px;
+      background: transparent;
+      color: var(--black);
+      border: 1px solid var(--black);
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-outline:hover { background: var(--black); color: var(--white); }
+
+    /* Footnote */
+    .footnote {
+      text-align: center;
+      font-size: 11px;
+      color: #bbb;
+      margin-top: 24px;
+      line-height: 1.9;
+    }
+    .footnote a { color: #888; text-decoration: underline; text-underline-offset: 2px; transition: color 0.15s; }
+    .footnote a:hover { color: #181818; }
+
+    /* Print */
+    @media print {
+      body { background: white; }
+      .header-actions, .field, .btn-analyze, .loading-box,
+      .upload-zone, .preview-bar, .action-row, .footnote { display: none !important; }
+      .card { border: none; }
+    }
+
+    /* Mobile */
+    @media (max-width: 480px) {
+      .header { padding-top: 32px; }
+      .logo { font-size: 22px; }
+      .action-row { flex-direction: column; }
+      .vehicle-card { flex-direction: column; align-items: flex-start; }
+    }
+
+    /* ── Services section ── */
+    .services-wrap { display: none; margin-top: 1px; }
+    .services-wrap.visible { display: block; }
+
+    .services-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-bottom: none;
+    }
+    .services-head-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .services-head-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .geo-status {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .geo-status.locating::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #f59e0b;
+      margin-right: 5px;
+      animation: pulse 1s ease-in-out infinite;
+    }
+    .geo-status.located::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--c-green);
+      margin-right: 5px;
+    }
+    .geo-status.error::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--c-red);
+      margin-right: 5px;
+    }
+
+    /* Map */
+    .services-map {
+      width: 100%;
+      height: 260px;
+      background: #e8e8e6;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      position: relative;
+      overflow: hidden;
+    }
+    .services-map iframe {
+      width: 100%; height: 100%;
+      border: none;
+      display: block;
+    }
+    .map-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .map-placeholder svg { opacity: 0.3; }
+
+    /* Service cards */
+    .service-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-top: none;
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 16px;
+      align-items: start;
+      transition: background 0.15s;
+    }
+    .service-card:hover { background: var(--surface); }
+
+    .service-name { font-size: 14px; font-weight: 500; color: var(--black); margin-bottom: 3px; }
+    .service-address { font-size: 12px; color: var(--muted); margin-bottom: 6px; line-height: 1.4; }
+
+    .service-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .service-tag {
+      font-size: 11px;
+      padding: 2px 7px;
+      border: 1px solid var(--border);
+      color: #555;
+    }
+    .service-tag.price {
+      border-color: var(--black);
+      color: var(--black);
+      font-weight: 500;
+    }
+
+    .service-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .service-dist {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--black);
+      white-space: nowrap;
+    }
+    .service-rating {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .service-links { display: flex; gap: 6px; }
+    .service-link {
+      font-size: 11px;
+      padding: 4px 8px;
+      border: 1px solid var(--border-strong);
+      color: var(--black);
+      text-decoration: none;
+      background: none;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .service-link:hover { background: var(--black); color: var(--white); }
+
+    .services-error {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-top: none;
+      padding: 20px 24px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .services-loading {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-top: none;
+      padding: 20px 24px;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .services-loading .step-dot {
+      background: var(--muted);
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    @media (max-width: 480px) {
+      .service-card { grid-template-columns: 1fr; }
+      .service-right { flex-direction: row; align-items: center; flex-wrap: wrap; }
+    }
+
+    /* ── User bar ── */
+    .user-bar {
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      margin-bottom: 0;
+      font-size: 12px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .user-bar.visible { display: flex; }
+    .user-email { font-weight: 500; color: var(--black); }
+    .user-bar-right { display: flex; align-items: center; gap: 12px; }
+    .user-analyses {
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .user-analyses.used { border-color: var(--c-orange); color: var(--c-orange); }
+    .btn-cabinet {
+      background: none; border: 1px solid var(--border-strong);
+      padding: 5px 10px; font-family: inherit; font-size: 11px;
+      cursor: pointer; color: var(--black); transition: background 0.15s;
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .btn-cabinet:hover { background: var(--black); color: var(--white); }
+    .btn-logout {
+      background: none; border: none; font-family: inherit;
+      font-size: 11px; color: var(--muted); cursor: pointer;
+      text-decoration: underline; text-underline-offset: 2px;
+      transition: color 0.15s; padding: 0;
+    }
+    .btn-logout:hover { color: var(--black); }
+
+    /* ── Paywall ── */
+    .paywall {
+      display: none;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--black);
+      padding: 24px;
+      margin-top: 1px;
+      text-align: center;
+    }
+    .paywall.visible { display: block; }
+    .paywall-title { font-size: 15px; font-weight: 500; margin-bottom: 8px; }
+    .paywall-sub { font-size: 13px; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+    .paywall-price {
+      font-size: 28px; font-weight: 600; margin-bottom: 4px; letter-spacing: -1px;
+    }
+    .paywall-price span { font-size: 14px; font-weight: 400; color: var(--muted); }
+    .paywall-per { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+    .btn-pay {
+      display: block; width: 100%; height: 52px; line-height: 52px;
+      background: var(--black); color: var(--white); text-align: center;
+      border: 1px solid var(--black); font-family: inherit; font-size: 14px;
+      cursor: pointer; transition: opacity 0.15s; margin-bottom: 10px;
+      text-decoration: none; box-sizing: border-box;
+    }
+    .btn-pay:hover { opacity: 0.82; }
+    .paywall-note { font-size: 11px; color: var(--muted); }
+
+    /* ── Cabinet modal ── */
+    .cabinet-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 100;
+      align-items: flex-end; justify-content: center;
+    }
+    .cabinet-overlay.visible { display: flex; }
+    @media (min-width: 600px) {
+      .cabinet-overlay { align-items: center; padding: 20px; }
+    }
+    .cabinet {
+      background: var(--white); width: 100%; max-width: 560px;
+      max-height: 92vh; display: flex; flex-direction: column;
+      border: 1px solid var(--border-strong);
+      animation: modalUp 0.2s ease-out;
+    }
+    @keyframes modalUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .cabinet-header {
+      padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: flex-start;
+    }
+    .cabinet-title { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+    .cabinet-email { font-size: 12px; color: var(--muted); }
+    .btn-close {
+      background: none; border: none; font-size: 20px; color: var(--muted);
+      cursor: pointer; padding: 0; line-height: 1; transition: color 0.15s;
+    }
+    .btn-close:hover { color: var(--black); }
+    .cabinet-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+    .cabinet-section { margin-bottom: 24px; }
+    .cabinet-section-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--muted); margin-bottom: 12px; font-weight: 500;
+    }
+    .cabinet-stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .cabinet-stat-row:last-child { border-bottom: none; }
+    .cabinet-stat-label { color: var(--muted); }
+    .cabinet-stat-value { font-weight: 500; color: var(--black); }
+    .cabinet-stat-value.paid { color: var(--c-green); }
+    .cabinet-stat-value.free { color: var(--c-orange); }
+
+    /* History list */
+    .history-empty { font-size: 13px; color: var(--muted); padding: 8px 0; }
+    .history-item {
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: opacity 0.15s;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { opacity: 0.7; }
+    .history-item-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 4px;
+    }
+    .history-item-type { font-size: 13px; font-weight: 500; color: var(--black); }
+    .history-item-date { font-size: 11px; color: var(--muted); }
+    .history-item-meta { font-size: 12px; color: var(--muted); }
+
+    .cabinet-footer {
+      padding: 16px 24px 20px; border-top: 1px solid var(--border);
+    }
+    .btn-logout-full {
+      width: 100%; height: 44px; background: none;
+      border: 1px solid var(--border-strong); font-family: inherit;
+      font-size: 13px; cursor: pointer; color: var(--black);
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-logout-full:hover { background: var(--black); color: var(--white); }
+
+    /* ── Auth overlay ── */
+    .auth-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #f2f2f0;
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    .auth-overlay.visible { display: flex; }
+    .auth-overlay-inner {
+      width: 100%;
+      max-width: 440px;
+      padding: 0 16px;
+    }
+    .auth-overlay-logo {
+      font-size: 28px;
+      font-weight: 400;
+      letter-spacing: -2px;
+      color: var(--black);
+      margin-bottom: 6px;
+    }
+    .auth-overlay-logo span { color: var(--c-accent); }
+    .auth-overlay-tagline {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+    }
+  </style>
+  <!-- Yandex Metrika -->
+  <script>
+    (function(m,e,t,r,i,k,a){
+      m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+      m[i].l=1*new Date();
+      k=e.createElement(t),a=e.getElementsByTagName(t)[0];
+      k.async=1;k.src=r;a.parentNode.insertBefore(k,a)
+    })(window,document,'script','https://mc.yandex.ru/metrika/tag.js','ym');
+
+    // ← ЗАМЕНИ НА СВОЙ НОМЕР СЧЁТЧИКА
+    var YM_ID = 12345678;
+    ym(YM_ID, 'init', {
+      clickmap: true,
+      trackLinks: true,
+      accurateTrackBounce: true,
+      webvisor: true
+    });
+  </script>
+  <noscript><div><img src="https://mc.yandex.ru/watch/12345678" style="position:absolute;left:-9999px;" alt="" /></div></noscript>
+  <!-- /Yandex Metrika -->
+
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div>
+        <div class="logo">АВТО<span>СКАН</span></div>
+        <div class="tagline">Анализ повреждений по фотографии · ИИ</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-ghost" id="printBtn" onclick="window.print()" style="display:none">Печать</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- User bar -->
+  <div class="user-bar" id="userBar">
+    <span class="user-email" id="userEmail"></span>
+    <div class="user-bar-right">
+      <span class="user-analyses" id="userAnalyses"></span>
+      <button class="btn-cabinet" onclick="openCabinet()">Кабинет</button>
+      <button class="btn-logout" onclick="handleLogout()">Выйти</button>
+    </div>
+  </div>
+
+  <!-- Upload card -->
+  <div class="card">
+
+    <!-- Upload zone -->
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+      <div class="upload-icon">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="12" width="32" height="22" stroke="#181818" stroke-width="1.5"/>
+          <path d="M14 12L16.5 7H23.5L26 12" stroke="#181818" stroke-width="1.5" stroke-linejoin="round"/>
+          <circle cx="20" cy="23" r="5" stroke="#181818" stroke-width="1.5"/>
+          <line x1="30" y1="18" x2="33" y2="18" stroke="#181818" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="upload-title">Нажмите или перетащите фото сюда</div>
+      <div class="upload-hint">JPG, PNG, WebP · до 10 МБ · хорошее освещение</div>
+    </div>
+
+    <!-- Preview -->
+    <div class="preview-wrap" id="previewWrap">
+      <img id="previewImg" alt="Превью">
+      <div class="preview-bar">
+        <span class="preview-name" id="previewName"></span>
+        <button class="btn-remove" onclick="removeFile()">Удалить</button>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Inspection type -->
+    <div class="field">
+      <label class="field-label" for="inspectionType">Тип осмотра</label>
+      <select id="inspectionType">
+        <option value="страховой случай">Страховой случай</option>
+        <option value="предпродажная оценка">Предпродажная оценка</option>
+        <option value="плановый осмотр">Плановый осмотр</option>
+        <option value="оценка ремонта">Оценка стоимости ремонта</option>
+      </select>
+    </div>
+
+    <!-- Error -->
+    <div class="error-box" id="errorBox">
+      <p id="errorText"></p>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-box" id="loadingBox">
+      <div class="loading-title">Анализируем фото...</div>
+      <div class="steps">
+        <div class="step" id="step1"><div class="step-dot"></div>Загрузка изображения</div>
+        <div class="step" id="step2"><div class="step-dot"></div>Распознавание деталей</div>
+        <div class="step" id="step3"><div class="step-dot"></div>Анализ повреждений</div>
+        <div class="step" id="step4"><div class="step-dot"></div>Расчёт стоимости</div>
+      </div>
+    </div>
+
+    <!-- Analyze button -->
+    <button class="btn-analyze" id="analyzeBtn" disabled>
+      Анализировать повреждения
+    </button>
+
+  </div><!-- /card -->
+
+  <!-- Result -->
+  <div class="result-wrap" id="resultWrap"></div>
+
+
+  <!-- Paywall -->
+  <div class="paywall" id="paywall">
+    <div class="paywall-title">Бесплатный анализ использован</div>
+    <div class="paywall-sub">
+      Вы использовали 1 бесплатный анализ.<br>
+      Чтобы продолжить — напишите нам, мы откроем доступ вручную.
+    </div>
+    <a class="btn-pay" href="/cdn-cgi/l/email-protection#a6cfc8c0c9e6c7d0d2c9c9d2d5c3c8cdc788d4d399d5d3c4ccc3c5d29b7631761676197726761877278676127618772777247725761976168676367614772476187607761c7616761b80c4c9c2df9b763176127726761676147727772476147725761f772476138a86761977267618772e77258676187724761c7726772d7724772a8676127618772777247725761986761c867727761377267614761e77277725867612761d772986761a7618761376157618867616761c761c76167725761b7724761688">
+      Написать на почту →
+    </a>
+    <div class="paywall-note"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="660b070f0a260507144b15050708481413">[email&#160;protected]</a> · ответим в течение часа</div>
+  </div>
+
+  <!-- Services -->
+  <!-- <div class="services-wrap" id="servicesWrap">
+    <div class="services-head">
+      <span class="services-head-label">Ближайшие сервисы</span>
+      <div class="services-head-right">
+        <span class="geo-status" id="geoStatus"></span>
+      </div>
+    </div>
+    <div class="services-map" id="servicesMap">
+      <div class="map-placeholder" id="mapPlaceholder">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="16" cy="14" r="5" stroke="#181818" stroke-width="1.5"/>
+          <path d="M16 3C10.477 3 6 7.477 6 13c0 7 10 18 10 18s10-11 10-18c0-5.523-4.477-10-10-10z" stroke="#181818" stroke-width="1.5" fill="none"/>
+        </svg>
+        <span>Определяем местоположение…</span>
+      </div>
+    </div>
+    <div id="servicesList"></div>
+  </div> -->
+
+
+
+  <div class="footnote">
+    Оценка носит предварительный характер.<br>
+    Для точного расчёта рекомендуем очный осмотр.
+    <br>
+    <a href="/terms" target="_blank">Terms of Use</a>
+    <span style="margin:0 6px;color:#ddd">&middot;</span>
+    <a href="/privacy" target="_blank">Privacy Policy</a>
+  </div>
+
+</div><!-- /page -->
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  // ── Supabase ──
+  const SUPABASE_URL  = 'https://bxeyrsaovexzkzfdrxym.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4ZXlyc2FvdmV4emt6ZmRyeHltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzY2MTIsImV4cCI6MjA5MDIxMjYxMn0.hvCuqm5iBwG0aaKjFc6QrIgQuWZt1PtuZoyv3jWEkj4';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  let currentUser    = null;
+  let currentProfile = null;
+
+  // ── Analytics ──────────────────────────────────────────────
+  // Отправляет событие в Яндекс Метрику и сохраняет в Supabase
+  async function track(event, params = {}) {
+    // Yandex Metrika
+    if (window.ym && window.YM_ID) {
+      ym(YM_ID, 'reachGoal', event, params);
+    }
+
+    // Log event to our backend
+    try {
+      fetch('/api/event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event,
+          params,
+          user_id: currentUser?.id || null,
+          url: window.location.pathname,
+          ua: navigator.userAgent.slice(0, 200),
+        })
+      });
+    } catch(e) { /* не блокируем основной поток */ }
+  }
+
+  // ── Auth gate: redirect to /auth.html if not logged in ──
+  async function initAuth() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      // Мгновенный редирект — скрываем страницу до редиректа чтобы не было мигания
+      document.body.style.visibility = 'hidden';
+      window.location.replace('/auth.html');
+      return;
+    }
+    currentUser = session.user;
+    document.body.style.visibility = 'visible'; // показываем страницу
+
+    // Создаём/получаем профиль через наш бэкенд
+    await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id, email: currentUser.email })
+    });
+    const profileRes = await fetch('/api/profile/' + currentUser.id);
+    currentProfile = profileRes.ok ? await profileRes.json() : null;
+
+    // Show user bar
+    document.getElementById('userBar').classList.add('visible');
+    document.getElementById('userEmail').textContent = currentUser.email;
+    updateAnalysesBadge();
+
+    // Show paywall if free limit reached and not paid
+    if (profile && profile.analyses_count >= 1 && !profile.is_paid) {
+      showPaywall();
+      track('paywall_shown', { analyses_count: profile.analyses_count });
+    }
+
+    track('page_view');
+  }
+
+  function updateAnalysesBadge() {
+    if (!currentProfile) return;
+    const el = document.getElementById('userAnalyses');
+    const isPaid = currentProfile.is_paid;
+    const count  = currentProfile.analyses_count || 0;
+    if (isPaid) {
+      el.textContent = 'Подписка активна';
+      el.className = 'user-analyses';
+    } else {
+      el.textContent = count >= 1 ? 'Лимит исчерпан' : `Бесплатных: ${1 - count}`;
+      el.className = 'user-analyses' + (count >= 1 ? ' used' : '');
+    }
+  }
+
+  function showPaywall() {
+    document.getElementById('paywall').classList.add('visible');
+    document.getElementById('analyzeBtn').disabled = true;
+    document.getElementById('analyzeBtn').textContent = 'Требуется подписка';
+  }
+
+  async function handleLogout() {
+    track('logout');
+    await sb.auth.signOut();
+    window.location.href = '/auth.html';
+  }
+
+  // ── Cabinet ──
+  async function openCabinet() {
+    track('cabinet_opened');
+    document.getElementById('cabinetOverlay').classList.add('visible');
+    document.getElementById('cabinetEmail').textContent = currentUser?.email || '';
+
+    // Stats
+    const isPaid = currentProfile?.is_paid;
+    const count  = currentProfile?.analyses_count || 0;
+    document.getElementById('cabStatus').textContent  = isPaid ? 'Подписка активна' : 'Бесплатный';
+    document.getElementById('cabStatus').className    = 'cabinet-stat-value ' + (isPaid ? 'paid' : 'free');
+    document.getElementById('cabCount').textContent   = count;
+    document.getElementById('cabDate').textContent    = currentUser?.created_at
+      ? new Date(currentUser.created_at).toLocaleDateString('ru-RU')
+      : '—';
+
+    // History
+    const historyRes = await fetch('/api/profile/' + currentUser.id + '/analyses');
+    const historyData = historyRes.ok ? await historyRes.json() : { analyses: [] };
+    const analyses = historyData.analyses;
+
+    const histEl = document.getElementById('cabHistory');
+    if (!analyses || analyses.length === 0) {
+      histEl.innerHTML = '<div class="history-empty">Анализов пока нет</div>';
+      return;
+    }
+    histEl.innerHTML = analyses.map(a => {
+      const date = new Date(a.created_at).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      const total = a.result?.data?.summary?.total_estimated_cost;
+      const cost  = total ? fmtRange(total.min, total.max) : '—';
+      const resultJson = JSON.stringify(a.result).replace(/'/g, "\'");
+      return `<div class="history-item" onclick='loadAnalysis(${JSON.stringify(a.result)})'>
+        <div class="history-item-head">
+          <span class="history-item-type">${esc(a.inspection_type || 'Анализ')}</span>
+          <span class="history-item-date">${date}</span>
+        </div>
+        <div class="history-item-meta">${esc(a.photo_name || '')} · ${cost}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function closeCabinet() {
+    document.getElementById('cabinetOverlay').classList.remove('visible');
+  }
+
+  function loadAnalysis(resultJson) {
+    track('history_analysis_opened');
+    closeCabinet();
+    if (!resultJson) return;
+    hideResult();
+    const pw = document.getElementById('paywall');
+    if (pw) pw.classList.remove('visible');
+    renderResult(resultJson);
+    // Даём браузеру отрисовать перед скроллом
+    requestAnimationFrame(() => {
+      const rw = document.getElementById('resultWrap');
+      if (rw) rw.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  // ── DOM ──
+  const uploadZone   = document.getElementById('uploadZone');
+  const fileInput    = document.getElementById('fileInput');
+  const previewWrap  = document.getElementById('previewWrap');
+  const previewImg   = document.getElementById('previewImg');
+  const previewName  = document.getElementById('previewName');
+  const analyzeBtn   = document.getElementById('analyzeBtn');
+  const loadingBox   = document.getElementById('loadingBox');
+  const errorBox     = document.getElementById('errorBox');
+  const errorText    = document.getElementById('errorText');
+  const resultWrap   = document.getElementById('resultWrap');
+  const inspectionType = document.getElementById('inspectionType');
+
+  let currentFile = null;
+
+  // ── Upload ──
+  uploadZone.addEventListener('click', () => fileInput.click());
+  uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', e => {
+    if (e.target.files.length) handleFile(e.target.files[0]);
+  });
+
+  function handleFile(file) {
+    const allowed = ['image/jpeg','image/png','image/webp'];
+    if (!allowed.includes(file.type)) { showError('Формат не поддерживается. Используйте JPG, PNG или WebP.'); return; }
+    if (file.size > 10*1024*1024) { showError('Файл слишком большой. Максимум 10 МБ.'); return; }
+    if (file.size < 10*1024)      { showError('Файл слишком маленький. Минимум 10 КБ.'); return; }
+
+    currentFile = file;
+    track('photo_uploaded', { size_kb: Math.round(file.size / 1024), type: file.type });
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      previewName.textContent = file.name + ' · ' + formatSize(file.size);
+      uploadZone.style.display = 'none';
+      previewWrap.classList.add('visible');
+      analyzeBtn.disabled = false;
+      hideError();
+      hideResult();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeFile() {
+    currentFile = null;
+    fileInput.value = '';
+    previewWrap.classList.remove('visible');
+    uploadZone.style.display = '';
+    analyzeBtn.disabled = true;
+    hideResult();
+  }
+
+  // ── Steps ──
+  function setStep(n) {
+    for (let i = 1; i <= 4; i++) {
+      const el = document.getElementById('step'+i);
+      el.classList.remove('active','done');
+      if (i < n)      el.classList.add('done');
+      else if (i===n) el.classList.add('active');
+    }
+  }
+
+  // ── Analyze ──
+  analyzeBtn.addEventListener('click', async () => {
+    if (!currentFile) return;
+
+    loadingBox.classList.add('visible');
+    analyzeBtn.disabled = true;
+    hideError();
+    hideResult();
+
+    const fd = new FormData();
+    fd.append('file', currentFile);
+    fd.append('inspection_type', inspectionType.value);
+
+    track('analyze_started', { inspection_type: inspectionType.value });
+    let step = 1; setStep(1);
+    const timer = setInterval(() => { if (step < 4) setStep(++step); }, 1800);
+
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        body: fd,
+        headers: currentUser ? { 'x-user-id': currentUser.id } : {}
+      });
+      clearInterval(timer);
+
+      if (res.status === 402) {
+        showPaywall();
+        loadingBox.classList.remove('visible');
+        analyzeBtn.disabled = false;
+        return;
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Ошибка сервера ' + res.status);
+      }
+
+      const json = await res.json();
+      if (!json.success) throw new Error('Неизвестная ошибка анализа');
+
+      track('analyze_success', {
+        damages_count: json.data?.damages?.length || 0,
+        confidence: json.data?.meta?.analysis_confidence,
+        inspection_type: inspectionType.value,
+      });
+
+      renderResult(json);
+
+      // Обновляем локальный профиль после анализа
+      if (currentUser && currentProfile) {
+        const newCount = (currentProfile.analyses_count || 0) + 1;
+        currentProfile = { ...currentProfile, analyses_count: newCount };
+        updateAnalysesBadge();
+        if (newCount >= 1 && !currentProfile.is_paid) showPaywall();
+      }
+
+    } catch(e) {
+      clearInterval(timer);
+      track('analyze_error', { message: e.message });
+      showError(e.message);
+    } finally {
+      loadingBox.classList.remove('visible');
+      analyzeBtn.disabled = false;
+    }
+  });
+
+  // ── Render result ──
+  function renderResult(json) {
+    // Поддержка форматов: {success,data:{...}} / {data:{...}} / {vehicle,damages,...}
+    let raw = json;
+    if (json && json.data && typeof json.data === 'object') raw = json.data;
+    if (!raw || typeof raw !== 'object') raw = {};
+
+    const vehicle = raw.vehicle || {};
+    const damages = Array.isArray(raw.damages) ? raw.damages : [];
+    const summary = raw.summary || {};
+    const meta    = raw.meta    || {};
+
+    const confidenceColor = vehicle.confidence >= 80 ? '#10b981' : vehicle.confidence >= 50 ? '#f59e0b' : '#ef4444';
+    const confidenceLabel = vehicle.confidence >= 80 ? 'Высокая' : vehicle.confidence >= 50 ? 'Средняя' : 'Низкая';
+
+    let html = '';
+
+    // Vehicle
+    const vName = [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ') || 'Автомобиль не определён';
+    html += `
+      <div class="vehicle-card">
+        <div class="vehicle-icon">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 26H34M8 26L11 17Q13 12 18 11H22Q27 12 29 17L32 26Q34 28 32 30L8 30Q6 28 8 26Z"
+              stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M14 11L16 5Q17 3 19 3H21Q23 3 24 5L26 11Z"
+              stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+            <circle cx="12" cy="30" r="4" fill="#181818" stroke="white" stroke-width="1.5"/>
+            <circle cx="28" cy="30" r="4" fill="#181818" stroke="white" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div>
+          <div class="vehicle-name">${esc(vName)}</div>
+          <div class="vehicle-meta">Год: ${vehicle.year || '—'}</div>
+          <div class="confidence-pill">
+            <div class="confidence-dot" style="background:${confidenceColor}"></div>
+            Уверенность: ${confidenceLabel} (${vehicle.confidence}%)
+          </div>
+        </div>
+      </div>`;
+
+    // Quality alert
+    if (meta.photo_quality !== 'good') {
+      const isPoor = meta.photo_quality === 'poor';
+      html += `<div class="quality-alert${isPoor?' poor':''}">
+        <strong>Качество фото: ${isPoor ? 'низкое' : 'среднее'}</strong>
+        ${(meta.missing_angles||[]).length ? `<div class="quality-hint">Рекомендуем добавить ракурсы: ${esc((meta.missing_angles||[]).join(', '))}</div>` : ''}
+      </div>`;
+    }
+
+    // Damages header
+    html += `<div class="section-head">
+      <span class="section-head-label">Повреждения</span>
+      <div class="count-badge">${damages.length}</div>
+    </div>`;
+
+    if (damages.length === 0) {
+      html += `<div class="card" style="color:var(--muted);font-size:13px">Повреждений не обнаружено</div>`;
+    } else {
+      damages.forEach(d => {
+        const sc = severityColor(d.severity);
+        html += `
+          <div class="damage-card severity-${d.severity}">
+            <div class="dmg-head">
+              <div class="dmg-type">${damageLabel(d.type)}</div>
+              <div class="dmg-severity" style="color:${sc};border-color:${sc}">${severityLabel(d.severity)}</div>
+            </div>
+            <div class="dmg-location">${esc(d.location)}</div>
+            <div class="dmg-description">${esc(d.description)}</div>
+            <div class="dmg-tags">
+              ${d.size_cm2 != null ? `<div class="tag">${d.size_cm2} см²</div>` : ''}
+              <div class="tag">${esc(d.repair_method)}</div>
+            </div>
+            <div class="dmg-cost-row">
+              <div class="dmg-cost-label">Стоимость ремонта</div>
+              <div class="dmg-cost-value">${d.estimated_cost_rub ? fmtRange(d.estimated_cost_rub.min, d.estimated_cost_rub.max) : "—"}</div>
+            </div>
+          </div>`;
+      });
+    }
+
+    // Summary
+    html += `<div class="section-head" style="margin-top:1px">
+      <span class="section-head-label">Итоговая оценка</span>
+    </div>
+    <div class="summary-card">
+      <div class="summary-row"><span class="sum-label">Срок ремонта</span><span class="sum-value">${esc(summary.repair_time_days)}</span></div>
+      <div class="summary-row"><span class="sum-label">Автомобиль на ходу</span><span class="sum-value">${drivableLabel(summary.drivable)}</span></div>
+      <div class="summary-row"><span class="sum-label">Очный осмотр</span><span class="sum-value">${summary.requires_in_person_inspection ? 'Рекомендуется' : 'Не требуется'}</span></div>
+      <div class="summary-row"><span class="sum-label">Уверенность анализа</span><span class="sum-value">${meta.analysis_confidence != null ? meta.analysis_confidence + "%" : "—"}</span></div>
+      <div class="summary-row total"><span class="sum-label">Итоговая стоимость</span><span class="sum-total">${summary.total_estimated_cost ? fmtRange(summary.total_estimated_cost.min, summary.total_estimated_cost.max) : "—"}</span></div>
+    </div>`;
+
+    // Recommendations
+    if ((summary.recommendations||[]).length) {
+      html += `<div class="rec-card">
+        <div class="section-head-label" style="margin-bottom:12px">Рекомендации</div>
+        <ul class="rec-list">
+          ${(summary.recommendations||[]).map(r => `<li>${esc(r)}</li>`).join('')}
+        </ul>
+      </div>`;
+    }
+
+    // Meta
+    html += `<div class="meta-row">
+      ${json.model_used ? `<span>Модель: ${esc(json.model_used)}</span>` : ''}
+      ${json.tokens_used != null ? `<span>Токенов: ${json.tokens_used}</span>` : ''}
+      <span>${new Date(json.processed_at).toLocaleString('ru-RU')}</span>
+    </div>`;
+
+    // Actions
+    html += `<div class="action-row">
+      <button class="btn-primary" onclick="window.print()">Распечатать отчёт</button>
+      <button class="btn-outline" onclick="resetForm()">Новый анализ</button>
+    </div>`;
+
+    resultWrap.innerHTML = html;
+    resultWrap.classList.add('visible');
+    resultWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('printBtn').style.display = '';
+
+    // Запускаем поиск сервисов
+    const damageTypes = (json.data?.damages || []).map(d => d.type);
+    showServices(damageTypes);
+  }
+
+  // ── Helpers ──
+  function esc(s) {
+    if (!s && s !== 0) return '';
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+  }
+
+  function fmt(n) {
+    return new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB', maximumFractionDigits:0 }).format(n);
+  }
+  function fmtRange(a, b) { return `${fmt(a)} — ${fmt(b)}`; }
+  function formatSize(b) {
+    if (!b) return '';
+    const k=1024, s=['Б','КБ','МБ'];
+    const i = Math.floor(Math.log(b)/Math.log(k));
+    return (b/Math.pow(k,i)).toFixed(1)+' '+s[i];
+  }
+
+  function damageLabel(t) {
+    return { scratch:'Царапина', dent:'Вмятина', crack:'Трещина', deformation:'Деформация', corrosion:'Коррозия', other:'Другое' }[t] || t;
+  }
+  function severityLabel(s) {
+    return { cosmetic:'Косметическое', minor:'Незначительное', moderate:'Среднее', severe:'Серьёзное', critical:'Критическое' }[s] || s;
+  }
+  function severityColor(s) {
+    return { cosmetic:'#10b981', minor:'#f59e0b', moderate:'#f97316', severe:'#ef4444', critical:'#7f1d1d' }[s] || '#888';
+  }
+  function drivableLabel(v) {
+    if (v === true)  return 'Да';
+    if (v === false) return 'Нет';
+    return 'Неизвестно';
+  }
+
+  function showError(msg) {
+    errorText.textContent = msg;
+    errorBox.classList.add('visible');
+  }
+  function hideError()  { errorBox.classList.remove('visible'); }
+  function hideResult() { resultWrap.classList.remove('visible'); resultWrap.innerHTML = ''; }
+
+
+  // ── Services / Geolocation ──────────────────────────────────────────────
+
+  // Коэффициенты цен по регионам (город определяем по координатам через 2GIS geocode)
+  const REGION_MULTIPLIERS = {
+    'Москва':          1.0,
+    'Санкт-Петербург': 0.92,
+    'default':         0.72,
+  };
+
+  // Базовые цены (Москва) за тип повреждения ₽
+  const BASE_PRICES = {
+    scratch:      { min: 3000,  max: 12000  },
+    dent:         { min: 5000,  max: 25000  },
+    crack:        { min: 8000,  max: 40000  },
+    deformation:  { min: 15000, max: 80000  },
+    corrosion:    { min: 6000,  max: 30000  },
+    other:        { min: 3000,  max: 15000  },
+  };
+
+  let userCoords = null;
+  let regionName = 'default';
+  let lastDamageTypes = [];
+
+  function getDistanceKm(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+    return R * 2 * Math.asin(Math.sqrt(a));
+  }
+
+  function fmtDist(km) {
+    return km < 1 ? Math.round(km * 1000) + ' м' : km.toFixed(1) + ' км';
+  }
+
+  function localPrice(type, multiplier) {
+    const b = BASE_PRICES[type] || BASE_PRICES.other;
+    return {
+      min: Math.round(b.min * multiplier / 100) * 100,
+      max: Math.round(b.max * multiplier / 100) * 100,
+    };
+  }
+
+  function showServices(damageTypes) {
+    lastDamageTypes = damageTypes || [];
+    const wrap = document.getElementById('servicesWrap');
+    const geoStatus = document.getElementById('geoStatus');
+    wrap.classList.add('visible');
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    geoStatus.className = 'geo-status locating';
+    geoStatus.textContent = 'Определяем геопозицию';
+    setServicesLoading('Запрашиваем доступ к геолокации…');
+
+    if (!navigator.geolocation) {
+      geoStatus.className = 'geo-status error';
+      geoStatus.textContent = 'Геолокация недоступна';
+      setServicesError('Браузер не поддерживает геолокацию. Включите вручную в настройках.');
+      renderMapPlaceholder();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      pos => onGeoSuccess(pos, damageTypes),
+      err => onGeoError(err),
+      { timeout: 10000, maximumAge: 60000 }
+    );
+  }
+
+  async function onGeoSuccess(pos, damageTypes) {
+    const { latitude: lat, longitude: lng } = pos.coords;
+    userCoords = { lat, lng };
+
+    const geoStatus = document.getElementById('geoStatus');
+    geoStatus.className = 'geo-status located';
+    geoStatus.textContent = 'Местоположение определено';
+    setServicesLoading('Ищем ближайшие сервисы…');
+
+    // Определяем город через 2GIS geocode для коэффициента цен
+    try {
+      const geoRes = await fetch(
+        `https://catalog.api.2gis.com/3.0/items/geocode?lat=${lat}&lng=${lng}&fields=items.address&key=DEMO`
+      );
+      const geoData = await geoRes.json();
+      const city = geoData?.result?.items?.[0]?.address?.city_name || '';
+      regionName = REGION_MULTIPLIERS[city] !== undefined ? city : 'default';
+    } catch(e) {
+      regionName = 'default';
+    }
+
+    // Ищем автосервисы через 2GIS catalog
+    try {
+      const KEY = window.TWOGIS_API_KEY || 'DEMO'; // подставь реальный ключ
+      const url = `https://catalog.api.2gis.com/3.0/items?q=%D0%B0%D0%B2%D1%82%D0%BE%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81+%D0%BA%D1%83%D0%B7%D0%BE%D0%B2%D0%BD%D0%BE%D0%B9+%D1%80%D0%B5%D0%BC%D0%BE%D0%BD%D1%82&point=${lng},${lat}&radius=5000&type=branch&fields=items.point,items.address,items.contact_groups,items.rating,items.name_ex&page_size=5&key=${KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const items = data?.result?.items || [];
+
+      if (items.length === 0) {
+        setServicesError('Сервисы в радиусе 5 км не найдены. Попробуйте позже.');
+        renderMap(lat, lng, []);
+        return;
+      }
+
+      const services = items.map(item => {
+        const sLat = item.point?.lat;
+        const sLng = item.point?.lon;
+        const dist = (sLat && sLng) ? getDistanceKm(lat, lng, sLat, sLng) : null;
+        const phone = item.contact_groups?.[0]?.contacts?.find(c => c.type === 'phone')?.value || null;
+        const website = item.contact_groups?.[0]?.contacts?.find(c => c.type === 'website')?.value || null;
+        return {
+          name: item.name,
+          address: item.address_name || '',
+          lat: sLat, lng: sLng,
+          dist, phone, website,
+          rating: item.reviews?.rating_count ? item.reviews.general_rating : null,
+        };
+      }).sort((a,b) => (a.dist||99) - (b.dist||99));
+
+      renderMap(lat, lng, services);
+      renderServiceCards(services, damageTypes);
+
+    } catch(e) {
+      setServicesError('Не удалось загрузить список сервисов. Проверьте API ключ 2GIS.');
+      renderMap(lat, lng, []);
+    }
+  }
+
+  function onGeoError(err) {
+    const geoStatus = document.getElementById('geoStatus');
+    geoStatus.className = 'geo-status error';
+    const msgs = {
+      1: 'Доступ к геолокации запрещён — разрешите в настройках браузера',
+      2: 'Не удалось определить местоположение',
+      3: 'Превышено время ожидания геолокации',
+    };
+    geoStatus.textContent = msgs[err.code] || 'Ошибка геолокации';
+    setServicesError(msgs[err.code] || 'Ошибка геолокации.');
+    renderMapPlaceholder();
+  }
+
+  function renderMap(lat, lng, services) {
+    const map = document.getElementById('servicesMap');
+    // Формируем URL для 2GIS iframe с метками
+    const markers = services.slice(0,5).map((s,i) =>
+      s.lat && s.lng ? `${s.lng},${s.lat}` : null
+    ).filter(Boolean).join('~');
+
+    // Карта через 2GIS WebGL (embed)
+    const mapUrl = `https://widgets.2gis.com/widget?type=firmsonmap&options=%7B%22pos%22%3A%7B%22lat%22%3A${lat}%2C%22lon%22%3A${lng}%2C%22zoom%22%3A14%7D%7D`;
+    map.innerHTML = `<iframe src="${mapUrl}" allowfullscreen loading="lazy"></iframe>`;
+  }
+
+  function renderMapPlaceholder(msg) {
+    const map = document.getElementById('servicesMap');
+    map.innerHTML = `<div class="map-placeholder">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="16" cy="14" r="5" stroke="#181818" stroke-width="1.5"/>
+        <path d="M16 3C10.477 3 6 7.477 6 13c0 7 10 18 10 18s10-11 10-18c0-5.523-4.477-10-10-10z" stroke="#181818" stroke-width="1.5" fill="none"/>
+      </svg>
+      <span>${msg || 'Карта недоступна'}</span>
+    </div>`;
+  }
+
+  function renderServiceCards(services, damageTypes) {
+    const list = document.getElementById('servicesList');
+    const multiplier = REGION_MULTIPLIERS[regionName] ?? REGION_MULTIPLIERS.default;
+    const types = damageTypes.length ? damageTypes : ['other'];
+
+    // Считаем суммарный диапазон цен по повреждениям
+    let totalMin = 0, totalMax = 0;
+    types.forEach(t => {
+      const p = localPrice(t, multiplier);
+      totalMin += p.min; totalMax += p.max;
+    });
+
+    list.innerHTML = services.map(s => {
+      const distTag = s.dist != null ? `<div class="service-tag">${fmtDist(s.dist)}</div>` : '';
+      const ratingTag = s.rating ? `<div class="service-tag">★ ${Number(s.rating).toFixed(1)}</div>` : '';
+      const priceTag = `<div class="service-tag price">${fmt(totalMin)} — ${fmt(totalMax)}</div>`;
+
+      const phoneLink = s.phone
+        ? `<a class="service-link" href="tel:${s.phone.replace(/\D/g,'')}">Позвонить</a>`
+        : '';
+      const mapLink = s.lat && s.lng
+        ? `<a class="service-link" href="https://2gis.ru/geo/${s.lng},${s.lat}" target="_blank">На карте</a>`
+        : `<a class="service-link" href="https://2gis.ru/search/${encodeURIComponent(s.name)}" target="_blank">2GIS</a>`;
+      const webLink = s.website
+        ? `<a class="service-link" href="${s.website}" target="_blank">Сайт</a>`
+        : '';
+
+      return `<div class="service-card">
+        <div>
+          <div class="service-name">${esc(s.name)}</div>
+          <div class="service-address">${esc(s.address)}</div>
+          <div class="service-tags">
+            ${distTag}${ratingTag}${priceTag}
+          </div>
+        </div>
+        <div class="service-right">
+          <div class="service-links">${phoneLink}${mapLink}${webLink}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function setServicesLoading(msg) {
+    document.getElementById('servicesList').innerHTML =
+      `<div class="services-loading"><div class="step-dot"></div>${msg}</div>`;
+  }
+
+  function setServicesError(msg) {
+    document.getElementById('servicesList').innerHTML =
+      `<div class="services-error">${msg}</div>`;
+  }
+
+  // ── Init ──
+  document.addEventListener('DOMContentLoaded', initAuth);
+
+  function resetForm() {
+    removeFile();
+    hideError();
+    hideResult();
+    document.getElementById('servicesWrap').classList.remove('visible');
+    document.getElementById('paywall').classList.remove('visible');
+    document.getElementById('printBtn').style.display = 'none';
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }
+</script>
+
+<!-- Cabinet modal -->
+<div class="cabinet-overlay" id="cabinetOverlay" onclick="if(event.target===this)closeCabinet()">
+  <div class="cabinet">
+    <div class="cabinet-header">
+      <div>
+        <div class="cabinet-title">Личный кабинет</div>
+        <div class="cabinet-email" id="cabinetEmail"></div>
+      </div>
+      <button class="btn-close" onclick="closeCabinet()">×</button>
+    </div>
+    <div class="cabinet-body">
+      <div class="cabinet-section">
+        <div class="cabinet-section-label">Аккаунт</div>
+        <div class="cabinet-stat-row">
+          <span class="cabinet-stat-label">Статус</span>
+          <span class="cabinet-stat-value" id="cabStatus">—</span>
+        </div>
+        <div class="cabinet-stat-row">
+          <span class="cabinet-stat-label">Анализов выполнено</span>
+          <span class="cabinet-stat-value" id="cabCount">—</span>
+        </div>
+        <div class="cabinet-stat-row">
+          <span class="cabinet-stat-label">Дата регистрации</span>
+          <span class="cabinet-stat-value" id="cabDate">—</s
