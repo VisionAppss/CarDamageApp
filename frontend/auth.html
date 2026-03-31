@@ -3,14 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>АвтоСкан — Вход</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <title>Войти в Car Scan — Оценка повреждений авто</title>
+  <meta name="description" content="Войдите в Car Scan чтобы получить бесплатный ИИ-анализ повреждений вашего автомобиля по фотографии.">
+  <meta name="robots" content="noindex, follow">
+  <link rel="canonical" href="https://car-scan.ru/auth.html">
+  <meta property="og:title" content="Войти в Car Scan">
+  <meta property="og:description" content="Бесплатный ИИ-анализ повреждений автомобиля по фото.">
+  <meta property="og:url" content="https://car-scan.ru/auth.html">
+  <meta property="og:image" content="https://car-scan.ru/icons/og-image.png">
   <link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <link rel="manifest" href="/icons/site.webmanifest">
+  <meta name="theme-color" content="#181818">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -279,12 +286,6 @@
       .header { padding-top: 32px; }
       .logo { font-size: 22px; }
       .otp-cell { height: 48px; font-size: 17px; }
-      .btn-primary{
-        flex:none
-      }
-      .btn-outline{
-        flex:none
-      }
     }
   </style>
 </head>
@@ -388,7 +389,7 @@
         <h3>5. Передача третьим лицам</h3>
         <p>Мы не продаём и не передаём данные третьим лицам. YandexGPT обрабатывает изображения согласно политике Яндекса.</p>
         <h3>6. Права пользователя</h3>
-        <p>Запрос на копию, исправление или удаление данных: <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7c0c0e150a1d1f053c1d0a081313080f1912171d520e09">[email&#160;protected]</a></strong></p>
+        <p>Запрос на копию, исправление или удаление данных: <strong>privacy@avtootsenka.ru</strong></p>
       </div>
 
       <div class="doc" id="doc-terms">
@@ -431,7 +432,7 @@
 </div>
 
 <!-- Supabase JS -->
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
   // ── Supabase init ──
@@ -567,4 +568,10 @@
   function acceptConsent() {
     if (!$('chkPrivacy').checked || !$('chkTerms').checked) { $('consentErr').classList.add('visible'); return; }
     $('consentErr').classList.remove('visible');
-    $('consentModal').classLis
+    $('consentModal').classList.remove('visible');
+    // Согласие дано — сохраним факт в Supabase после входа (профиль создаётся триггером)
+    doSendCode(pendingEmail);
+  }
+</script>
+</body>
+</html>
