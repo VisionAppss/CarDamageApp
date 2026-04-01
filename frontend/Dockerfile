@@ -13,5 +13,7 @@ RUN chmod 644 /usr/share/nginx/html/auth.html
 COPY icons/ /usr/share/nginx/html/icons/
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+COPY robots.txt /usr/share/nginx/html/
+COPY sitemap.xml /usr/share/nginx/html/
 # Порт
 EXPOSE 80

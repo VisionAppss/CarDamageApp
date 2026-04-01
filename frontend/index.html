@@ -3,16 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>АвтоСкан — Анализ повреждений</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <title>Car Scan — Оценка повреждений автомобиля по фото за 30 секунд</title>
+  <meta name="description" content="Car Scan — онлайн-оценка повреждений автомобиля по фото за 30 секунд. Загрузите фото после ДТП — ИИ определит повреждения и рассчитает стоимость ремонта. Бесплатно.">
+  <meta name="keywords" content="оценка повреждений автомобиля, ущерб после ДТП онлайн, стоимость ремонта авто, анализ повреждений по фото, осмотр автомобиля ИИ, кузовной ремонт цена, страховой случай оценка">
+  <meta name="robots" content="index, follow">
+  <meta name="language" content="ru">
+  <link rel="canonical" href="https://car-scan.ru/">
+
+  <!-- OG -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://car-scan.ru/">
+  <meta property="og:title" content="Car Scan — Оценка повреждений авто по фото за 30 секунд">
+  <meta property="og:description" content="Загрузите фото после ДТП — ИИ определит все повреждения и рассчитает стоимость ремонта. Быстро, точно, без очного осмотра.">
+  <meta property="og:image" content="https://car-scan.ru/icons/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="Car Scan">
+  <meta property="og:locale" content="ru_RU">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Car Scan — Оценка повреждений авто по фото">
+  <meta name="twitter:description" content="ИИ определит повреждения и рассчитает стоимость ремонта за 30 секунд. Бесплатный первый анализ.">
+  <meta name="twitter:image" content="https://car-scan.ru/icons/og-image.png">
+
+  <!-- Favicon -->
   <link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <link rel="manifest" href="/icons/site.webmanifest">
-  <meta name="theme-color" content="#111111">
+  <meta name="theme-color" content="#181818">
+  <meta name="yandex-verification" content="c65ee41bb12bb7ab" />
+
+  <!-- Schema.org -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Car Scan",
+    "url": "https://car-scan.ru",
+    "description": "Онлайн-сервис оценки повреждений автомобиля по фотографии с помощью ИИ. Определяет повреждения, рассчитывает стоимость ремонта, находит ближайшие автосервисы.",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "Any",
+    "inLanguage": "ru",
+    "offers": {"@type": "Offer", "price": "0", "priceCurrency": "RUB"},
+    "featureList": ["Анализ повреждений кузова по фото", "Расчёт стоимости ремонта", "Поиск ближайших автосервисов", "История анализов в личном кабинете"]
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {"@type": "Question", "name": "Как оценить ущерб автомобиля после ДТП онлайн?", "acceptedAnswer": {"@type": "Answer", "text": "Загрузите фотографию повреждённого автомобиля на сайте Car Scan. ИИ автоматически определит все повреждения и рассчитает стоимость ремонта за 30 секунд."}},
+      {"@type": "Question", "name": "Сколько стоит оценка повреждений автомобиля?", "acceptedAnswer": {"@type": "Answer", "text": "Первый анализ бесплатно. Сервис использует ИИ для автоматической оценки без выезда эксперта."}},
+      {"@type": "Question", "name": "Насколько точна оценка повреждений по фото?", "acceptedAnswer": {"@type": "Answer", "text": "Car Scan использует нейросетевую модель с точностью анализа до 85%. Результат носит предварительный характер."}},
+      {"@type": "Question", "name": "Можно ли использовать результат для страховой компании?", "acceptedAnswer": {"@type": "Answer", "text": "Оценка Car Scan носит информационный характер. Для страховой выплаты требуется официальная экспертиза."}}
+    ]
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -793,6 +846,7 @@
     .history-item-type { font-size: 13px; font-weight: 500; color: var(--black); }
     .history-item-date { font-size: 11px; color: var(--muted); }
     .history-item-meta { font-size: 12px; color: var(--muted); }
+    .history-item-meta strong { color: var(--black); font-weight: 500; }
 
     .cabinet-footer {
       padding: 16px 24px 20px; border-top: 1px solid var(--border);
@@ -837,27 +891,195 @@
       border-bottom: 1px solid var(--border);
       padding-bottom: 24px;
     }
+
+    /* ── Info popups ── */
+    .popup-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .popup-overlay.visible { display: flex; }
+    @media (min-width: 600px) {
+      .popup-overlay { align-items: center; padding: 20px; }
+    }
+    .popup {
+      background: var(--white);
+      width: 100%;
+      max-width: 600px;
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-strong);
+      animation: modalUp 0.2s ease-out;
+    }
+    @keyframes modalUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .popup-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-shrink: 0;
+    }
+    .popup-title { font-size: 15px; font-weight: 500; color: var(--black); }
+    .popup-close {
+      background: none; border: none; font-size: 20px;
+      color: var(--muted); cursor: pointer; padding: 0;
+      line-height: 1; transition: color 0.15s; flex-shrink: 0;
+    }
+    .popup-close:hover { color: var(--black); }
+    .popup-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      flex: 1;
+      font-size: 13px;
+      color: #444;
+      line-height: 1.7;
+    }
+    .popup-body::-webkit-scrollbar { width: 3px; }
+    .popup-body::-webkit-scrollbar-track { background: #f5f5f5; }
+    .popup-body::-webkit-scrollbar-thumb { background: #ccc; }
+    .popup-body h2 {
+      font-size: 13px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--muted);
+      margin: 20px 0 8px;
+    }
+    .popup-body h2:first-child { margin-top: 0; }
+    .popup-body p { margin-bottom: 10px; }
+    .popup-body ul { padding-left: 18px; margin-bottom: 10px; }
+    .popup-body ul li { margin-bottom: 5px; }
+    .popup-body strong { color: var(--black); font-weight: 500; }
+    .popup-body a { color: var(--black); text-underline-offset: 2px; }
+    .popup-about-hero {
+      background: var(--black);
+      color: var(--white);
+      margin: -20px -24px 20px;
+      padding: 28px 24px;
+    }
+    .popup-about-logo {
+      font-size: 22px;
+      font-weight: 400;
+      letter-spacing: -2px;
+      margin-bottom: 6px;
+    }
+    .popup-about-logo span { color: var(--c-accent); }
+    .popup-about-sub { font-size: 12px; color: rgba(255,255,255,0.6); }
+    .popup-stat-row {
+      display: flex;
+      gap: 1px;
+      margin: 16px 0;
+    }
+    .popup-stat {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 12px;
+      text-align: center;
+    }
+    .popup-stat-val {
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--black);
+      letter-spacing: -0.5px;
+    }
+    .popup-stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    /* ── Multi-photo preview ── */
+    .multi-preview {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      background: #111;
+      padding: 4px;
+    }
+    .multi-preview-item {
+      position: relative;
+      flex: 1;
+      min-width: 80px;
+      max-width: calc(20% - 4px);
+    }
+    .multi-preview-item img {
+      width: 100%;
+      height: 80px;
+      object-fit: cover;
+      display: block;
+    }
+    .multi-preview-item.main img {
+      height: 260px;
+      max-width: 100%;
+    }
+    .multi-preview-item .remove-one {
+      position: absolute;
+      top: 4px; right: 4px;
+      background: rgba(239,68,68,0.85);
+      border: none; color: #fff;
+      width: 20px; height: 20px;
+      font-size: 12px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      line-height: 1;
+    }
+    .multi-preview-item .photo-num {
+      position: absolute;
+      bottom: 4px; left: 4px;
+      background: rgba(0,0,0,0.6);
+      color: #fff; font-size: 10px;
+      padding: 1px 5px;
+    }
+    .add-more-btn {
+      background: none;
+      border: 1px dashed rgba(255,255,255,0.3);
+      color: rgba(255,255,255,0.5);
+      font-family: inherit;
+      font-size: 11px;
+      cursor: pointer;
+      min-width: 60px;
+      height: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: border-color 0.15s;
+    }
+    .add-more-btn:hover { border-color: rgba(255,255,255,0.6); color: #fff; }
+    @media (max-width: 480px) {
+      .multi-preview-item { max-width: calc(33% - 4px); }
+      .multi-preview-item.main img { height: 180px; }
+    }
   </style>
-  <!-- Yandex Metrika -->
-  <script>
-    (function(m,e,t,r,i,k,a){
+
+  <!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+  (function(m,e,t,r,i,k,a){
       m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
       m[i].l=1*new Date();
-      k=e.createElement(t),a=e.getElementsByTagName(t)[0];
-      k.async=1;k.src=r;a.parentNode.insertBefore(k,a)
-    })(window,document,'script','https://mc.yandex.ru/metrika/tag.js','ym');
+      for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+      k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+  })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=108345172', 'ym');
 
-    // ← ЗАМЕНИ НА СВОЙ НОМЕР СЧЁТЧИКА
-    var YM_ID = 12345678;
-    ym(YM_ID, 'init', {
-      clickmap: true,
-      trackLinks: true,
-      accurateTrackBounce: true,
-      webvisor: true
-    });
-  </script>
-  <noscript><div><img src="https://mc.yandex.ru/watch/12345678" style="position:absolute;left:-9999px;" alt="" /></div></noscript>
-  <!-- /Yandex Metrika -->
+  ym(108345172, 'init', {
+    ssr:true, 
+    webvisor:true, // включить, если нужно
+   clickmap:true, 
+   ecommerce:"dataLayer", 
+   referrer: document.referrer, 
+   url: location.href, 
+   accurateTrackBounce:true, 
+   trackLinks:true});
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/108345172" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
 
 </head>
 <body>
@@ -868,7 +1090,7 @@
     <div class="header-inner">
       <div>
         <div class="logo">АВТО<span>СКАН</span></div>
-        <div class="tagline">Анализ повреждений по фотографии · ИИ</div>
+        <div class="tagline">Анализ повреждений по фотографии</div>
       </div>
       <div class="header-actions">
         <button class="btn-ghost" id="printBtn" onclick="window.print()" style="display:none">Печать</button>
@@ -891,7 +1113,7 @@
 
     <!-- Upload zone -->
     <div class="upload-zone" id="uploadZone">
-      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple>
       <div class="upload-icon">
         <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
           <rect x="4" y="12" width="32" height="22" stroke="#181818" stroke-width="1.5"/>
@@ -901,15 +1123,15 @@
         </svg>
       </div>
       <div class="upload-title">Нажмите или перетащите фото сюда</div>
-      <div class="upload-hint">JPG, PNG, WebP · до 10 МБ · хорошее освещение</div>
+      <div class="upload-hint">JPG, PNG, WebP · до 5 фото · до 10 МБ каждое</div>
     </div>
 
-    <!-- Preview -->
-    <div class="preview-wrap" id="previewWrap">
-      <img id="previewImg" alt="Превью">
+    <!-- Multi-photo preview -->
+    <div class="preview-wrap" id="previewWrap" style="display:none">
+      <div class="multi-preview" id="multiPreview"></div>
       <div class="preview-bar">
         <span class="preview-name" id="previewName"></span>
-        <button class="btn-remove" onclick="removeFile()">Удалить</button>
+        <button class="btn-remove" onclick="removeFile()">Удалить все</button>
       </div>
     </div>
 
@@ -960,31 +1182,15 @@
       Вы использовали 1 бесплатный анализ.<br>
       Чтобы продолжить — напишите нам, мы откроем доступ вручную.
     </div>
-    <a class="btn-pay" href="/cdn-cgi/l/email-protection#a6cfc8c0c9e6c7d0d2c9c9d2d5c3c8cdc788d4d399d5d3c4ccc3c5d29b7631761676197726761877278676127618772777247725761976168676367614772476187607761c7616761b80c4c9c2df9b763176127726761676147727772476147725761f772476138a86761977267618772e77258676187724761c7726772d7724772a8676127618772777247725761986761c867727761377267614761e77277725867612761d772986761a7618761376157618867616761c761c76167725761b7724761688">
+    <a class="btn-pay" href="mailto:mail@car-scan.ru?subject=Запрос доступа АвтоСкан&body=Здравствуйте, прошу открыть доступ к сервису для моего аккаунта.">
       Написать на почту →
     </a>
-    <div class="paywall-note"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="660b070f0a260507144b15050708481413">[email&#160;protected]</a> · ответим в течение часа</div>
+    <div class="paywall-note">mail@car-scan.ru · ответим в течение часа</div>
   </div>
 
-  <!-- Services -->
-  <!-- <div class="services-wrap" id="servicesWrap">
-    <div class="services-head">
-      <span class="services-head-label">Ближайшие сервисы</span>
-      <div class="services-head-right">
-        <span class="geo-status" id="geoStatus"></span>
-      </div>
-    </div>
-    <div class="services-map" id="servicesMap">
-      <div class="map-placeholder" id="mapPlaceholder">
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="16" cy="14" r="5" stroke="#181818" stroke-width="1.5"/>
-          <path d="M16 3C10.477 3 6 7.477 6 13c0 7 10 18 10 18s10-11 10-18c0-5.523-4.477-10-10-10z" stroke="#181818" stroke-width="1.5" fill="none"/>
-        </svg>
-        <span>Определяем местоположение…</span>
-      </div>
-    </div>
-    <div id="servicesList"></div>
-  </div> -->
+  <!-- Services (отключено временно) -->
+  <!-- <div class="services-wrap" id="servicesWrap">...</div> -->
+  <div class="services-wrap" id="servicesWrap" style="display:none!important"></div>
 
 
 
@@ -992,14 +1198,27 @@
     Оценка носит предварительный характер.<br>
     Для точного расчёта рекомендуем очный осмотр.
     <br>
-    <a href="/terms" target="_blank">Обработка данных</a>
+    <a href="#" onclick="openPopup('about');return false">О сервисе</a>
     <span style="margin:0 6px;color:#ddd">&middot;</span>
-    <a href="/privacy" target="_blank">Конфиденциальность</a>
+    <a href="#" onclick="openPopup('terms');return false">Условия использования</a>
+    <span style="margin:0 6px;color:#ddd">&middot;</span>
+    <a href="#" onclick="openPopup('privacy');return false">Политика конфиденциальности</a>
   </div>
 
 </div><!-- /page -->
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
+  // Кэш анализов — данные хранятся в памяти, onclick передаёт только id
+  window._analysisCache = {};
+
+  function openHistoryDetail(id) {
+    if (window._openHistoryDetail) {
+      window._openHistoryDetail(id);
+    }
+  }
+</script>
+
+<script>
   // ── Supabase ──
   const SUPABASE_URL  = 'https://bxeyrsaovexzkzfdrxym.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4ZXlyc2FvdmV4emt6ZmRyeHltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzY2MTIsImV4cCI6MjA5MDIxMjYxMn0.hvCuqm5iBwG0aaKjFc6QrIgQuWZt1PtuZoyv3jWEkj4';
@@ -1011,12 +1230,12 @@
   // ── Analytics ──────────────────────────────────────────────
   // Отправляет событие в Яндекс Метрику и сохраняет в Supabase
   async function track(event, params = {}) {
-    // Yandex Metrika
+    // Яндекс Метрика — reachGoal для всех событий
     if (window.ym && window.YM_ID) {
       ym(YM_ID, 'reachGoal', event, params);
     }
 
-    // Log event to our backend
+    // Log event to our PostgreSQL
     try {
       fetch('/api/event', {
         method: 'POST',
@@ -1029,8 +1248,18 @@
           ua: navigator.userAgent.slice(0, 200),
         })
       });
-    } catch(e) { /* не блокируем основной поток */ }
+    } catch(e) { /* не блокируем */ }
   }
+
+  // Цели Метрики — вызываются в ключевых точках воронки
+  // analyze_started   → пользователь нажал «Анализировать»
+  // analyze_success   → анализ завершён успешно
+  // analyze_error     → ошибка анализа
+  // paywall_shown     → показана блокировка (исчерпан лимит)
+  // cabinet_opened    → открыт личный кабинет
+  // history_analysis_opened → открыт старый анализ
+  // logout            → выход из аккаунта
+  // page_view         → просмотр страницы (с user_id)
 
   // ── Auth gate: redirect to /auth.html if not logged in ──
   async function initAuth() {
@@ -1052,6 +1281,14 @@
     });
     const profileRes = await fetch('/api/profile/' + currentUser.id);
     currentProfile = profileRes.ok ? await profileRes.json() : null;
+    // Фиксируем согласие в БД и localStorage
+    if (currentProfile) {
+      localStorage.setItem('ao_consent_' + currentUser.email, '1');
+      // Если consent_given ещё не стоит — ставим
+      if (!currentProfile.consent_given) {
+        fetch('/api/profile/' + currentUser.id + '/consent', { method: 'POST' });
+      }
+    }
 
     // Show user bar
     document.getElementById('userBar').classList.add('visible');
@@ -1059,9 +1296,9 @@
     updateAnalysesBadge();
 
     // Show paywall if free limit reached and not paid
-    if (profile && profile.analyses_count >= 1 && !profile.is_paid) {
+    if (currentProfile && currentProfile.analyses_count >= 1 && !currentProfile.is_paid) {
       showPaywall();
-      track('paywall_shown', { analyses_count: profile.analyses_count });
+      track('paywall_shown', { analyses_count: currentProfile.analyses_count });
     }
 
     track('page_view');
@@ -1123,13 +1360,36 @@
       const date = new Date(a.created_at).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
       const total = a.result?.data?.summary?.total_estimated_cost;
       const cost  = total ? fmtRange(total.min, total.max) : '—';
-      const resultJson = JSON.stringify(a.result).replace(/'/g, "\'");
-      return `<div class="history-item" onclick='loadAnalysis(${JSON.stringify(a.result)})'>
-        <div class="history-item-head">
-          <span class="history-item-type">${esc(a.inspection_type || 'Анализ')}</span>
-          <span class="history-item-date">${date}</span>
+      // Сохраняем данные в кэш — onclick передаёт только id
+      const cacheKey = 'analysis_' + a.id;
+      window._analysisCache[cacheKey] = {
+        result: a.result,
+        photoData: a.photo_data || '',
+        photoMime: a.photo_mime || 'image/jpeg'
+      };
+      const photoData = a.photo_data || '';
+      const photoMime = a.photo_mime || 'image/jpeg';
+      const damages = (a.result?.data?.damages || a.result?.damages || []);
+      const dmgCount = damages.length;
+      const quality = a.result?.data?.meta?.photo_quality || a.result?.meta?.photo_quality || '';
+      const qualityLabel = {good:'Хорошее', fair:'Среднее', poor:'Низкое'}[quality] || '';
+      const thumb = photoData
+        ? `<img src="data:${photoMime};base64,${photoData}" style="width:48px;height:36px;object-fit:cover;flex-shrink:0;border:1px solid var(--border)">`
+        : '';
+      return `<div class="history-item" style="display:flex;gap:10px;align-items:center" onclick="openHistoryDetail('${cacheKey}')">
+        ${thumb}
+        <div style="flex:1;min-width:0">
+          <div class="history-item-head">
+            <span class="history-item-type">${esc(a.inspection_type || 'Анализ')}</span>
+            <span class="history-item-date">${date}</span>
+          </div>
+          <div class="history-item-meta">
+            ${esc(a.photo_name || '')}
+            ${dmgCount ? `· <strong>${dmgCount} повр.</strong>` : ''}
+            ${cost !== '—' ? `· ${cost}` : ''}
+            ${qualityLabel ? `· фото: ${qualityLabel}` : ''}
+          </div>
         </div>
-        <div class="history-item-meta">${esc(a.photo_name || '')} · ${cost}</div>
       </div>`;
     }).join('');
   }
@@ -1138,48 +1398,52 @@
     document.getElementById('cabinetOverlay').classList.remove('visible');
   }
 
-  function loadAnalysis(resultJson) {
+  // Реализация — читает данные из кэша по id
+  window._openHistoryDetail = function(cacheKey) {
     track('history_analysis_opened');
     closeCabinet();
-    if (!resultJson) return;
-    hideResult();
+
+    const cached = window._analysisCache[cacheKey];
+    if (!cached) { console.warn('Analysis not found in cache:', cacheKey); return; }
+
+    // result из БД хранится как {success:true, data:{vehicle,damages,...}}
+    // renderResult умеет разворачивать оба формата
+    const resultJson = cached.result;
+    if (!resultJson) { console.warn('No result in cache entry'); return; }
+    console.log('Opening analysis, result keys:', Object.keys(resultJson));
+
     const pw = document.getElementById('paywall');
     if (pw) pw.classList.remove('visible');
+    hideResult();
+
+    // Показываем фото если есть
+    if (cached.photoData && cached.photoData.length > 10 && previewWrap && previewImg) {
+      previewImg.src = 'data:' + cached.photoMime + ';base64,' + cached.photoData;
+      if (uploadZone) uploadZone.style.display = 'none';
+      previewWrap.classList.add('visible');
+    }
+
     renderResult(resultJson);
-    // Даём браузеру отрисовать перед скроллом
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       const rw = document.getElementById('resultWrap');
       if (rw) rw.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+    }, 100);
+  };
+
+  function loadAnalysis(resultJson) {
+    // Для прямого вызова — кладём во временный кэш
+    const key = '_direct';
+    window._analysisCache[key] = { result: resultJson, photoData: '', photoMime: '' };
+    window._openHistoryDetail(key);
   }
 
-  // ── DOM ──
-  const uploadZone   = document.getElementById('uploadZone');
-  const fileInput    = document.getElementById('fileInput');
-  const previewWrap  = document.getElementById('previewWrap');
-  const previewImg   = document.getElementById('previewImg');
-  const previewName  = document.getElementById('previewName');
-  const analyzeBtn   = document.getElementById('analyzeBtn');
-  const loadingBox   = document.getElementById('loadingBox');
-  const errorBox     = document.getElementById('errorBox');
-  const errorText    = document.getElementById('errorText');
-  const resultWrap   = document.getElementById('resultWrap');
-  const inspectionType = document.getElementById('inspectionType');
+  // ── DOM — объявляем как let, инициализируем в DOMContentLoaded ──
+  let uploadZone, fileInput, previewWrap, previewImg, previewName,
+      analyzeBtn, loadingBox, errorBox, errorText, resultWrap, inspectionType;
 
-  let currentFile = null;
+  let currentFiles = []; // массив до 5 файлов
 
-  // ── Upload ──
-  uploadZone.addEventListener('click', () => fileInput.click());
-  uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-  uploadZone.addEventListener('drop', e => {
-    e.preventDefault();
-    uploadZone.classList.remove('dragover');
-    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
-  });
-  fileInput.addEventListener('change', e => {
-    if (e.target.files.length) handleFile(e.target.files[0]);
-  });
+  // ── Upload events moved to DOMContentLoaded ──
 
   function handleFile(file) {
     const allowed = ['image/jpeg','image/png','image/webp'];
@@ -1188,7 +1452,7 @@
     if (file.size < 10*1024)      { showError('Файл слишком маленький. Минимум 10 КБ.'); return; }
 
     currentFile = file;
-    track('photo_uploaded', { size_kb: Math.round(file.size / 1024), type: file.type });
+    // photo_uploaded tracked in handleFiles
     const reader = new FileReader();
     reader.onload = e => {
       previewImg.src = e.target.result;
@@ -1202,13 +1466,24 @@
     reader.readAsDataURL(file);
   }
 
+  window.removeOneFile = function(idx) {
+    currentFiles.splice(idx, 1);
+    if (currentFiles.length === 0) {
+      removeFile();
+    } else {
+      renderPreviews();
+    }
+  };
+
   function removeFile() {
-    currentFile = null;
+    currentFiles = [];
     fileInput.value = '';
-    previewWrap.classList.remove('visible');
+    previewWrap.style.display = 'none';
     uploadZone.style.display = '';
     analyzeBtn.disabled = true;
     hideResult();
+    const container = document.getElementById('multiPreview');
+    if (container) container.innerHTML = '';
   }
 
   // ── Steps ──
@@ -1222,7 +1497,7 @@
   }
 
   // ── Analyze ──
-  analyzeBtn.addEventListener('click', async () => {
+  async function doAnalyze() {
     if (!currentFile) return;
 
     loadingBox.classList.add('visible');
@@ -1230,9 +1505,15 @@
     hideError();
     hideResult();
 
+    if (!currentFiles.length) return;
     const fd = new FormData();
-    fd.append('file', currentFile);
+    fd.append('file', currentFiles[0]); // основное фото
+    // Остальные фото добавляем как дополнительные (бэкенд возьмёт первое)
+    for (let i = 1; i < currentFiles.length; i++) {
+      fd.append('extra_files', currentFiles[i]);
+    }
     fd.append('inspection_type', inspectionType.value);
+    fd.append('photos_count', currentFiles.length);
 
     track('analyze_started', { inspection_type: inspectionType.value });
     let step = 1; setStep(1);
@@ -1284,19 +1565,16 @@
       loadingBox.classList.remove('visible');
       analyzeBtn.disabled = false;
     }
-  });
+  }
 
   // ── Render result ──
   function renderResult(json) {
-    // Поддержка форматов: {success,data:{...}} / {data:{...}} / {vehicle,damages,...}
-    let raw = json;
-    if (json && json.data && typeof json.data === 'object') raw = json.data;
-    if (!raw || typeof raw !== 'object') raw = {};
-
-    const vehicle = raw.vehicle || {};
-    const damages = Array.isArray(raw.damages) ? raw.damages : [];
-    const summary = raw.summary || {};
-    const meta    = raw.meta    || {};
+    // Поддержка разных форматов: {success,data:{...}} / {data:{...}} / {vehicle,damages,...}
+    const raw = (json && json.data) ? json.data : json;
+    const vehicle = (raw && raw.vehicle) ? raw.vehicle : {};
+    const damages = (raw && raw.damages) ? raw.damages : [];
+    const summary = (raw && raw.summary) ? raw.summary : {};
+    const meta    = (raw && raw.meta)    ? raw.meta    : {};
 
     const confidenceColor = vehicle.confidence >= 80 ? '#10b981' : vehicle.confidence >= 50 ? '#f59e0b' : '#ef4444';
     const confidenceLabel = vehicle.confidence >= 80 ? 'Высокая' : vehicle.confidence >= 50 ? 'Средняя' : 'Низкая';
@@ -1407,9 +1685,9 @@
     resultWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
     document.getElementById('printBtn').style.display = '';
 
-    // Запускаем поиск сервисов
-    const damageTypes = (json.data?.damages || []).map(d => d.type);
-    showServices(damageTypes);
+    // Ближайшие сервисы временно отключены
+    // const damageTypes = ((json && json.data && json.data.damages) ? json.data.damages : (damages || [])).map(d => d.type);
+    // showServices(damageTypes);
   }
 
   // ── Helpers ──
@@ -1671,14 +1949,229 @@
       `<div class="services-error">${msg}</div>`;
   }
 
+  // ── Info popups ──
+  const POPUP_CONTENT = {
+    about: {
+      title: 'О сервисе',
+      html: `
+        <div class="popup-about-hero">
+          <div class="popup-about-logo">АВТО<span>СКАН</span></div>
+          <div class="popup-about-sub">Анализ повреждений автомобиля · Искусственный интеллект</div>
+        </div>
+
+        <p><strong>АвтоСкан</strong> — онлайн-сервис для автоматической оценки повреждений автомобиля по фотографии. Нейросеть анализирует снимок, определяет все видимые дефекты кузова и рассчитывает стоимость ремонта за 30 секунд.</p>
+
+        <div class="popup-stat-row">
+          <div class="popup-stat">
+            <div class="popup-stat-val">30 с</div>
+            <div class="popup-stat-label">время анализа</div>
+          </div>
+          <div class="popup-stat">
+            <div class="popup-stat-val">85%</div>
+            <div class="popup-stat-label">точность</div>
+          </div>
+          <div class="popup-stat">
+            <div class="popup-stat-val">6</div>
+            <div class="popup-stat-label">типов повреждений</div>
+          </div>
+        </div>
+
+        <h2>Как это работает</h2>
+        <p>Вы загружаете фотографию автомобиля — нейросетевая модель Gemma 3 27B анализирует изображение и возвращает структурированный отчёт: список повреждений с описанием, рекомендуемый способ ремонта и диапазон стоимости по московским ценам с региональными коэффициентами.</p>
+
+        <h2>Что определяет сервис</h2>
+        <ul>
+          <li><strong>Царапины</strong> — поверхностные повреждения лакокрасочного покрытия</li>
+          <li><strong>Вмятины</strong> — деформации без нарушения покрытия</li>
+          <li><strong>Трещины и сколы</strong> — разрывы металла или пластика</li>
+          <li><strong>Деформации</strong> — нарушение геометрии детали</li>
+          <li><strong>Коррозия</strong> — ржавчина и окисление</li>
+          <li><strong>Серьёзность</strong> — от косметических до критических повреждений</li>
+        </ul>
+
+        <h2>Для кого</h2>
+        <ul>
+          <li>Водители после ДТП — быстро понять масштаб ущерба до обращения в страховую</li>
+          <li>Покупатели б/у авто — проверить состояние кузова перед сделкой</li>
+          <li>Автосервисы и дилеры — предварительная оценка при приёмке</li>
+          <li>Страховые агенты — первичный скрининг перед выездом эксперта</li>
+          <li>Каршеринг и корпоративный флот — фиксация повреждений при сдаче</li>
+        </ul>
+
+        <h2>Ограничения</h2>
+        <p>Результат анализа носит <strong>предварительный, информационный характер</strong> и не является официальной технической экспертизой. Для страховых выплат, судебных разбирательств и официальных документов требуется очный осмотр сертифицированным экспертом.</p>
+
+        <h2>Контакты</h2>
+        <p>По вопросам работы сервиса, доступа и сотрудничества:<br>
+        <a href="mailto:mail@car-scan.ru">mail@car-scan.ru</a></p>
+      `
+    },
+
+    terms: {
+      title: 'Условия использования',
+      html: `
+        <h2>1. Предмет соглашения</h2>
+        <p>Настоящие Условия регулируют использование сервиса АвтоСкан (car-scan.ru) для автоматической оценки повреждений транспортных средств на основе фотографий с применением технологий искусственного интеллекта.</p>
+
+        <h2>2. Принятие условий</h2>
+        <p>Используя сервис, вы подтверждаете что прочитали, поняли и согласны с настоящими Условиями. Если вы не согласны — пожалуйста, не используйте сервис.</p>
+
+        <h2>3. Описание услуги</h2>
+        <p>АвтоСкан предоставляет автоматизированный анализ фотографий транспортных средств с целью выявления внешних повреждений и предварительной оценки стоимости ремонта. Анализ выполняется нейросетевой моделью без участия человека-эксперта.</p>
+
+        <h2>4. Ограничения ответственности</h2>
+        <p>Результаты анализа носят <strong>исключительно информационный и предварительный характер</strong>. Оператор не несёт ответственности за:</p>
+        <ul>
+          <li>Решения принятые на основании результатов анализа</li>
+          <li>Расхождение оценки с фактической стоимостью ремонта</li>
+          <li>Повреждения не обнаруженные вследствие качества фотографии</li>
+          <li>Использование результатов в официальных документах</li>
+        </ul>
+
+        <h2>5. Правила использования</h2>
+        <ul>
+          <li>Загружать фотографии только собственных или доверенных транспортных средств</li>
+          <li>Не использовать сервис для мошеннических действий со страховыми компаниями</li>
+          <li>Не загружать материалы нарушающие авторские права третьих лиц</li>
+          <li>Не осуществлять автоматизированные запросы без письменного согласия Оператора</li>
+        </ul>
+
+        <h2>6. Тарификация</h2>
+        <p>Первый анализ предоставляется бесплатно. Последующие анализы доступны по подписке. Оператор вправе изменять тарифы с уведомлением по email за 7 дней.</p>
+
+        <h2>7. Интеллектуальная собственность</h2>
+        <p>Алгоритмы, модели, дизайн и программный код сервиса являются собственностью Оператора. Результаты анализа конкретного транспортного средства принадлежат пользователю.</p>
+
+        <h2>8. Изменение условий</h2>
+        <p>Оператор вправе изменять настоящие Условия. Продолжение использования сервиса после уведомления означает принятие изменений.</p>
+
+        <h2>9. Применимое право</h2>
+        <p>Настоящие Условия регулируются законодательством Российской Федерации.</p>
+
+        <h2>10. Контакты</h2>
+        <p><a href="mailto:mail@car-scan.ru">mail@car-scan.ru</a></p>
+      `
+    },
+
+    privacy: {
+      title: 'Политика конфиденциальности',
+      html: `
+        <h2>1. Оператор данных</h2>
+        <p>Оператором персональных данных является сервис АвтоСкан (car-scan.ru). Обработка персональных данных осуществляется в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p>
+
+        <h2>2. Какие данные мы собираем</h2>
+        <ul>
+          <li><strong>Email-адрес</strong> — для идентификации, авторизации и уведомлений</li>
+          <li><strong>Фотографии транспортных средств</strong> — для выполнения анализа</li>
+          <li><strong>История анализов</strong> — результаты и параметры запросов</li>
+          <li><strong>Технические данные</strong> — IP-адрес, тип браузера, устройство, время запросов</li>
+          <li><strong>Данные аналитики</strong> — действия пользователя в интерфейсе (анонимизированы)</li>
+        </ul>
+
+        <h2>3. Цели обработки данных</h2>
+        <ul>
+          <li>Предоставление услуг по анализу повреждений</li>
+          <li>Аутентификация и управление аккаунтом</li>
+          <li>Улучшение качества нейросетевых моделей</li>
+          <li>Отправка уведомлений по запросу пользователя</li>
+          <li>Выявление и предотвращение мошеннических действий</li>
+        </ul>
+
+        <h2>4. Хранение данных</h2>
+        <p>Все данные хранятся на серверах в Российской Федерации. Сроки хранения:</p>
+        <ul>
+          <li>Фотографии — до 30 дней после анализа</li>
+          <li>Результаты анализов — до удаления аккаунта</li>
+          <li>Email и профиль — до удаления аккаунта</li>
+          <li>Технические логи — до 90 дней</li>
+        </ul>
+
+        <h2>5. Передача третьим лицам</h2>
+        <p>Мы не продаём и не передаём персональные данные третьим лицам за исключением:</p>
+        <ul>
+          <li><strong>Нейросетевые сервисы</strong> — изображения передаются для анализа согласно политике провайдера</li>
+          <li><strong>Аналитика</strong> — Яндекс Метрика собирает обезличенную статистику</li>
+          <li><strong>Требования законодательства</strong> — по запросу уполномоченных органов</li>
+        </ul>
+
+        <h2>6. Ваши права</h2>
+        <ul>
+          <li>Получить копию ваших персональных данных</li>
+          <li>Исправить неточные данные</li>
+          <li>Потребовать удаления данных («право на забвение»)</li>
+          <li>Отозвать согласие на обработку</li>
+        </ul>
+        <p>Для реализации прав обратитесь: <a href="mailto:mail@car-scan.ru">mail@car-scan.ru</a></p>
+
+        <h2>7. Cookie и аналитика</h2>
+        <p>Сервис использует cookie для авторизации и Яндекс Метрику для анализа использования. Продолжая работу с сайтом, вы соглашаетесь с использованием cookie.</p>
+
+        <h2>8. Безопасность</h2>
+        <p>Данные передаются по зашифрованному соединению HTTPS. Доступ к базе данных ограничен и защищён паролем. Фотографии хранятся изолированно от публичного доступа.</p>
+
+        <h2>9. Изменения политики</h2>
+        <p>При существенных изменениях мы уведомим пользователей по email. Актуальная версия всегда доступна на car-scan.ru.</p>
+
+        <h2>10. Контакты</h2>
+        <p>По вопросам обработки персональных данных:<br>
+        <a href="mailto:mail@car-scan.ru">mail@car-scan.ru</a></p>
+      `
+    }
+  };
+
+  function openPopup(type) {
+    const content = POPUP_CONTENT[type];
+    if (!content) return;
+    document.getElementById('popupTitle').textContent = content.title;
+    document.getElementById('popupBody').innerHTML = content.html;
+    document.getElementById('popupOverlay').classList.add('visible');
+    document.getElementById('popupBody').scrollTop = 0;
+  }
+
+  function closePopup() {
+    document.getElementById('popupOverlay').classList.remove('visible');
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePopup();
+  });
+
   // ── Init ──
-  document.addEventListener('DOMContentLoaded', initAuth);
+  document.addEventListener('DOMContentLoaded', () => {
+    uploadZone    = document.getElementById('uploadZone');
+    fileInput     = document.getElementById('fileInput');
+    previewWrap   = document.getElementById('previewWrap');
+    previewImg    = document.getElementById('previewImg');
+    previewName   = document.getElementById('previewName');
+    analyzeBtn    = document.getElementById('analyzeBtn');
+    loadingBox    = document.getElementById('loadingBox');
+    errorBox      = document.getElementById('errorBox');
+    errorText     = document.getElementById('errorText');
+    resultWrap    = document.getElementById('resultWrap');
+    inspectionType = document.getElementById('inspectionType');
+
+    // Upload events
+    uploadZone.addEventListener('click', () => fileInput.click());
+    uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', e => {
+      if (e.target.files.length) handleFiles(e.target.files);
+    });
+    analyzeBtn.addEventListener('click', doAnalyze);
+
+    initAuth();
+  });
 
   function resetForm() {
     removeFile();
     hideError();
     hideResult();
-    document.getElementById('servicesWrap').classList.remove('visible');
+    // document.getElementById('servicesWrap').classList.remove('visible');
     document.getElementById('paywall').classList.remove('visible');
     document.getElementById('printBtn').style.display = 'none';
     window.scrollTo({ top:0, behavior:'smooth' });
@@ -1708,4 +2201,31 @@
         </div>
         <div class="cabinet-stat-row">
           <span class="cabinet-stat-label">Дата регистрации</span>
-          <span class="cabinet-stat-value" id="cabDate">—</s
+          <span class="cabinet-stat-value" id="cabDate">—</span>
+        </div>
+      </div>
+      <div class="cabinet-section">
+        <div class="cabinet-section-label">История анализов</div>
+        <div id="cabHistory"><div class="history-empty">Загружаем…</div></div>
+      </div>
+    </div>
+    <div class="cabinet-footer">
+      <button class="btn-logout-full" onclick="handleLogout()">Выйти из аккаунта</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── Info Popups ── -->
+<div class="popup-overlay" id="popupOverlay" onclick="if(event.target===this)closePopup()">
+  <div class="popup">
+    <div class="popup-header">
+      <div class="popup-title" id="popupTitle"></div>
+      <button class="popup-close" onclick="closePopup()">×</button>
+    </div>
+    <div class="popup-body" id="popupBody"></div>
+  </div>
+</div>
+
+</body>
+</html>

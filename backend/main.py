@@ -354,6 +354,26 @@ async def upsert_profile(data: ProfileUpsert):
     return {"ok": True}
 
 
+@app.post("/profile/{user_id}/consent")
+async def mark_consent(user_id: str):
+    """Отмечает что пользователь принял соглашение."""
+    async with app.state.pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE profiles SET consent_given = TRUE WHERE id = $1
+        """, user_id)
+    return {"ok": True}
+
+
+@app.get("/profile/check-consent")
+async def check_consent_by_email(email: str):
+    """Проверяет давал ли пользователь согласие (по email, до входа)."""
+    async with app.state.pool.acquire() as conn:
+        row = await conn.fetchrow("""
+            SELECT consent_given FROM profiles WHERE email = $1
+        """, email)
+    return {"exists": row is not None, "consent_given": bool(row and row["consent_given"])}
+
+
 @app.get("/profile/{user_id}")
 async def get_profile(user_id: str):
     """Получить профиль пользователя."""
@@ -371,13 +391,24 @@ async def get_analyses(user_id: str, limit: int = 20):
     """История анализов пользователя."""
     async with app.state.pool.acquire() as conn:
         rows = await conn.fetch("""
-            SELECT id, created_at, inspection_type, photo_name, result
+            SELECT id, created_at, inspection_type, photo_name, result,
+                   photo_data, photo_mime
             FROM analyses
             WHERE user_id = $1
             ORDER BY created_at DESC
             LIMIT $2
         """, user_id, limit)
-    return {"analyses": [dict(r) for r in rows]}
+    analyses = []
+    for r in rows:
+        row = dict(r)
+        # asyncpg возвращает jsonb как строку — парсим обратно в dict
+        if isinstance(row.get('result'), str):
+            try:
+                row['result'] = json.loads(row['result'])
+            except Exception:
+                pass
+        analyses.append(row)
+    return {"analyses": analyses}
 
 
 @app.post("/event")
@@ -479,9 +510,10 @@ async def analyze_image(
         if x_user_id:
             async with app.state.pool.acquire() as conn:
                 await conn.execute("""
-                    INSERT INTO analyses (user_id, result, photo_name, inspection_type)
-                    VALUES ($1, $2, $3, $4)
-                """, x_user_id, json.dumps(result), file.filename, inspection_type)
+                    INSERT INTO analyses (user_id, result, photo_name, inspection_type, photo_data, photo_mime)
+                    VALUES ($1, $2, $3, $4, $5, $6)
+                """, x_user_id, json.dumps(result), file.filename, inspection_type,
+                     base64_image, file.content_type)
 
                 await conn.execute("""
                     UPDATE profiles

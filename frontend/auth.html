@@ -353,7 +353,7 @@
   <div class="footnote">
     Оценка носит предварительный характер. Для точного расчёта рекомендуем очный осмотр.
     <br>
-    <a href="/terms" target="_blank">Terms of Use</a><span class="sep">·</span><a href="/privacy" target="_blank">Privacy Policy</a>
+    <a href="/about" target="_blank">О сервисе</a><span class="sep">·</span><a href="/terms" target="_blank">Terms of Use</a><span class="sep">·</span><a href="/privacy" target="_blank">Privacy Policy</a>
   </div>
 
 </div>
@@ -389,7 +389,7 @@
         <h3>5. Передача третьим лицам</h3>
         <p>Мы не продаём и не передаём данные третьим лицам. YandexGPT обрабатывает изображения согласно политике Яндекса.</p>
         <h3>6. Права пользователя</h3>
-        <p>Запрос на копию, исправление или удаление данных: <strong>privacy@avtootsenka.ru</strong></p>
+        <p>Запрос на копию, исправление или удаление данных: <strong>mail@car-scan.ru</strong></p>
       </div>
 
       <div class="doc" id="doc-terms">
@@ -432,7 +432,7 @@
 </div>
 
 <!-- Supabase JS -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
   // ── Supabase init ──
@@ -483,25 +483,33 @@
     // Проверяем есть ли пользователь в БД — через публичный поиск по email в profiles
     // Используем Edge Function или просто проверяем через попытку signInWithOtp
     // Надёжный способ: смотрим есть ли email в таблице profiles (нужна открытая политика на чтение email)
-    let isNew = true;
-    try {
-      const { data } = await sb
-        .from('profiles')
-        .select('id')
-        .eq('email', val)
-        .maybeSingle();
-      isNew = !data; // если нашли запись — пользователь уже есть
-    } catch(e) {
-      isNew = true; // при ошибке — на всякий случай показываем согласие
-    }
-
     btn.disabled = false; btn.textContent = 'Получить ссылку →';
 
-    if (isNew) {
+    // Проверяем давал ли пользователь согласие через наш бэкенд
+    const consentLocal = !!localStorage.getItem('ao_consent_' + val);
+    if (consentLocal) {
+      doSendCode(val);
+      return;
+    }
+
+    // Проверяем через БД (работает на любом устройстве/браузере)
+    let consentGiven = false;
+    try {
+      const res = await fetch('/api/profile/check-consent?email=' + encodeURIComponent(val));
+      if (res.ok) {
+        const data = await res.json();
+        consentGiven = data.consent_given;
+        if (consentGiven) localStorage.setItem('ao_consent_' + val, '1');
+      }
+    } catch(e) {
+      consentGiven = false;
+    }
+
+    if (consentGiven) {
+      doSendCode(val);
+    } else {
       pendingEmail = val;
       $('consentModal').classList.add('visible');
-    } else {
-      doSendCode(val);
     }
   }
 
@@ -527,6 +535,7 @@
     // Показываем экран ожидания — ссылка отправлена
     $('sentEmail').textContent = email;
     showScreen('sent');
+    startTimer();  // запускаем таймер при первой отправке
     btn.disabled = false; btn.textContent = 'Получить ссылку →';
   }
 
@@ -569,7 +578,6 @@
     if (!$('chkPrivacy').checked || !$('chkTerms').checked) { $('consentErr').classList.add('visible'); return; }
     $('consentErr').classList.remove('visible');
     $('consentModal').classList.remove('visible');
-    // Согласие дано — сохраним факт в Supabase после входа (профиль создаётся триггером)
     doSendCode(pendingEmail);
   }
 </script>
