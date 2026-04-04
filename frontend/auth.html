@@ -389,7 +389,7 @@
         <h3>5. Передача третьим лицам</h3>
         <p>Мы не продаём и не передаём данные третьим лицам. YandexGPT обрабатывает изображения согласно политике Яндекса.</p>
         <h3>6. Права пользователя</h3>
-        <p>Запрос на копию, исправление или удаление данных: <strong>mail@car-scan.ru</strong></p>
+        <p>Запрос на копию, исправление или удаление данных: <strong><a href="mailto:carscan.ai@yandex.com">carscan.ai@yandex.com</a></strong></p>
       </div>
 
       <div class="doc" id="doc-terms">
@@ -432,7 +432,7 @@
 </div>
 
 <!-- Supabase JS -->
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
   // ── Supabase init ──
@@ -575,11 +575,4 @@
   }
 
   function acceptConsent() {
-    if (!$('chkPrivacy').checked || !$('chkTerms').checked) { $('consentErr').classList.add('visible'); return; }
-    $('consentErr').classList.remove('visible');
-    $('consentModal').classList.remove('visible');
-    doSendCode(pendingEmail);
-  }
-</script>
-</body>
-</html>
+    if (!$('chkPrivacy').checked || !$('chkTerm
