@@ -34,7 +34,6 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <link rel="manifest" href="/icons/site.webmanifest">
   <meta name="theme-color" content="#181818">
-  <meta name="yandex-verification" content="c65ee41bb12bb7ab" />
 
   <!-- Schema.org -->
   <script type="application/ld+json">
@@ -64,6 +63,8 @@
   }
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -194,7 +195,7 @@
       align-items: center;
       padding: 10px 0 0;
     }
-    .preview-name { font-size: 12px; color: var(--muted); }
+    .preview-name { font-size: 12px; color: var(--muted); break-word: break-all; padding-right: 10px;}
     .btn-remove {
       background: none;
       border: 1px solid var(--border);
@@ -206,6 +207,7 @@
       transition: all 0.15s;
     }
     .btn-remove:hover { border-color: var(--c-red); color: var(--c-red); }
+    .btn-remove:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
 
     /* ── Select ── */
     .field { margin-top: 20px; }
@@ -845,7 +847,7 @@
     }
     .history-item-type { font-size: 13px; font-weight: 500; color: var(--black); }
     .history-item-date { font-size: 11px; color: var(--muted); }
-    .history-item-meta { font-size: 12px; color: var(--muted); }
+    .history-item-meta { font-size: 12px; color: var(--muted); word-break: break-all; }
     .history-item-meta strong { color: var(--black); font-weight: 500; }
 
     .cabinet-footer {
@@ -998,88 +1000,99 @@
     /* ── Multi-photo preview ── */
     .multi-preview {
       display: flex;
-      gap: 4px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 0;
       background: #111;
-      padding: 4px;
     }
-    .multi-preview-item {
+    /* Главное фото — на всю ширину */
+    .multi-preview-main {
       position: relative;
-      flex: 1;
-      min-width: 80px;
-      max-width: calc(20% - 4px);
-    }
-    .multi-preview-item img {
       width: 100%;
-      height: 80px;
+    }
+    .multi-preview-main img {
+      width: 100%;
+      max-height: 340px;
       object-fit: cover;
       display: block;
+      background: #111;
     }
-    .multi-preview-item.main img {
-      height: 260px;
-      max-width: 100%;
+    /* Строка миниатюр */
+    .multi-preview-thumbs {
+      display: flex;
+      gap: 2px;
+      padding: 2px;
+      background: #111;
+      flex-wrap: nowrap;
+      overflow-x: auto;
     }
-    .multi-preview-item .remove-one {
+    .multi-preview-thumb {
+      position: relative;
+      flex-shrink: 0;
+      width: 72px;
+      height: 54px;
+    }
+    .multi-preview-thumb img {
+      width: 72px;
+      height: 54px;
+      object-fit: cover;
+      display: block;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+    .multi-preview-thumb img:hover { opacity: 1; }
+    .multi-preview-thumb.active img { opacity: 1; outline: 2px solid #FF5722; }
+    .remove-one {
       position: absolute;
-      top: 4px; right: 4px;
-      background: rgba(239,68,68,0.85);
+      top: 2px; right: 2px;
+      background: rgba(239,68,68,0.9);
       border: none; color: #fff;
-      width: 20px; height: 20px;
-      font-size: 12px; cursor: pointer;
+      width: 18px; height: 18px;
+      font-size: 11px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      line-height: 1;
-    }
-    .multi-preview-item .photo-num {
-      position: absolute;
-      bottom: 4px; left: 4px;
-      background: rgba(0,0,0,0.6);
-      color: #fff; font-size: 10px;
-      padding: 1px 5px;
+      line-height: 1; padding: 0;
     }
     .add-more-btn {
+      flex-shrink: 0;
       background: none;
-      border: 1px dashed rgba(255,255,255,0.3);
-      color: rgba(255,255,255,0.5);
+      border: 1px dashed rgba(255,255,255,0.25);
+      color: rgba(255,255,255,0.4);
       font-family: inherit;
-      font-size: 11px;
+      font-size: 10px;
       cursor: pointer;
-      min-width: 60px;
-      height: 80px;
+      width: 72px;
+      height: 54px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 4px;
+      gap: 2px;
       transition: border-color 0.15s;
     }
-    .add-more-btn:hover { border-color: rgba(255,255,255,0.6); color: #fff; }
-    @media (max-width: 480px) {
-      .multi-preview-item { max-width: calc(33% - 4px); }
-      .multi-preview-item.main img { height: 180px; }
-    }
+    .add-more-btn:hover { border-color: rgba(255,255,255,0.5); color: #fff; }
   </style>
-
+  <meta name="yandex-verification" content="c65ee41bb12bb7ab" />
   <!-- Yandex.Metrika counter -->
-<script type="text/javascript">
-  (function(m,e,t,r,i,k,a){
-      m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-      m[i].l=1*new Date();
-      for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-      k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-  })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=108345172', 'ym');
+  <script type="text/javascript">
+    (function(m,e,t,r,i,k,a){
+        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+        m[i].l=1*new Date();
+        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=108345172', 'ym');
 
-  ym(108345172, 'init', {
-    ssr:true, 
-    webvisor:true, // включить, если нужно
-   clickmap:true, 
-   ecommerce:"dataLayer", 
-   referrer: document.referrer, 
-   url: location.href, 
-   accurateTrackBounce:true, 
-   trackLinks:true});
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/108345172" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-<!-- /Yandex.Metrika counter -->
+    ym(108345172, 'init', {
+      ssr:true,
+      webvisor:true,
+      clickmap:true,
+      ecommerce:"dataLayer",
+      referrer: document.referrer,
+      url: location.href,
+      accurateTrackBounce:true,
+      trackLinks:true});
+  </script>
+  <!-- <noscript><div><img src="https://mc.yandex.ru/watch/108345172" style="position:absolute; left:-9999px;" alt="" /></div></noscript> -->
+  <!-- /Yandex.Metrika counter -->
 
 </head>
 <body>
@@ -1093,7 +1106,7 @@
         <div class="tagline">Анализ повреждений по фотографии</div>
       </div>
       <div class="header-actions">
-        <button class="btn-ghost" id="printBtn" onclick="window.print()" style="display:none">Печать</button>
+        <button class="btn-ghost" id="printBtn" onclick="downloadPDF()" style="display:none">Скачать PDF</button>
       </div>
     </div>
   </header>
@@ -1138,7 +1151,7 @@
     <div class="divider"></div>
 
     <!-- Inspection type -->
-    <div class="field">
+    <div class="field" id="inspectionTypeField">
       <label class="field-label" for="inspectionType">Тип осмотра</label>
       <select id="inspectionType">
         <option value="страховой случай">Страховой случай</option>
@@ -1146,6 +1159,7 @@
         <option value="плановый осмотр">Плановый осмотр</option>
         <option value="оценка ремонта">Оценка стоимости ремонта</option>
       </select>
+      <div id="inspectionTypeText" style="display:none; padding: 12px 0; font-size: 14px; color: var(--black);"></div>
     </div>
 
     <!-- Error -->
@@ -1182,10 +1196,10 @@
       Вы использовали 1 бесплатный анализ.<br>
       Чтобы продолжить — напишите нам, мы откроем доступ вручную.
     </div>
-    <a class="btn-pay" href="mailto:mail@car-scan.ru?subject=Запрос доступа АвтоСкан&body=Здравствуйте, прошу открыть доступ к сервису для моего аккаунта.">
+    <a class="btn-pay" href="/cdn-cgi/l/email-protection#274a464e4b674446550a54444649095552185452454d4244531af7b0f797f798f6a7f799f6a607f793f799f6a6f6a5f6a4f798f79707f7b7f795f6a5f799f786f79df797f79a014548435e1af7b0f793f6a7f797f795f6a6f6a5f795f6a4f79ef6a5f7920b07f798f6a7f799f6aff6a407f799f6a5f79df6a7f6acf6a5f6ab07f793f799f6a6f6a5f6a4f79807f79d07f6a6f792f6a7f795f79ff6a6f6a407f793f79cf6a807f79bf799f792f794f79907f797f79df79df797f6a4f79af6a5f79709">
       Написать на почту →
     </a>
-    <div class="paywall-note">mail@car-scan.ru · ответим в течение часа</div>
+    <div class="paywall-note"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7b161a12173b181a095608181a1555090e">[email&#160;protected]</a> · ответим в течение часа</div>
   </div>
 
   <!-- Services (отключено временно) -->
@@ -1207,7 +1221,7 @@
 
 </div><!-- /page -->
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
   // Кэш анализов — данные хранятся в памяти, onclick передаёт только id
   window._analysisCache = {};
 
@@ -1231,8 +1245,8 @@
   // Отправляет событие в Яндекс Метрику и сохраняет в Supabase
   async function track(event, params = {}) {
     // Яндекс Метрика — reachGoal для всех событий
-    if (window.ym && window.YM_ID) {
-      ym(YM_ID, 'reachGoal', event, params);
+    if (window.ym) {
+      ym(108345172, 'reachGoal', event, params);
     }
 
     // Log event to our PostgreSQL
@@ -1365,7 +1379,8 @@
       window._analysisCache[cacheKey] = {
         result: a.result,
         photoData: a.photo_data || '',
-        photoMime: a.photo_mime || 'image/jpeg'
+        photoMime: a.photo_mime || 'image/jpeg',
+        inspectionType: a.inspection_type || ''
       };
       const photoData = a.photo_data || '';
       const photoMime = a.photo_mime || 'image/jpeg';
@@ -1376,7 +1391,7 @@
       const thumb = photoData
         ? `<img src="data:${photoMime};base64,${photoData}" style="width:48px;height:36px;object-fit:cover;flex-shrink:0;border:1px solid var(--border)">`
         : '';
-      return `<div class="history-item" style="display:flex;gap:10px;align-items:center" onclick="openHistoryDetail('${cacheKey}')">
+      return `<div class="history-item" style="display:flex;gap:10px;align-items:center" onclick="window._openHistoryDetail('${cacheKey}')">
         ${thumb}
         <div style="flex:1;min-width:0">
           <div class="history-item-head">
@@ -1417,13 +1432,33 @@
     hideResult();
 
     // Показываем фото если есть
-    if (cached.photoData && cached.photoData.length > 10 && previewWrap && previewImg) {
-      previewImg.src = 'data:' + cached.photoMime + ';base64,' + cached.photoData;
+    if (cached.photoData && cached.photoData.length > 10 && previewWrap) {
+      const src = 'data:' + cached.photoMime + ';base64,' + cached.photoData;
+      const container = document.getElementById('multiPreview');
+      if (container) {
+        container.innerHTML = '<div class="multi-preview-main"><img src="' + src + '" alt="Фото анализа"></div>';
+      }
       if (uploadZone) uploadZone.style.display = 'none';
-      previewWrap.classList.add('visible');
+      previewWrap.style.display = 'block';
+      const previewNameEl = document.getElementById('previewName');
+      if (previewNameEl) previewNameEl.textContent = 'Сохранённый анализ';
     }
 
     renderResult(resultJson);
+
+    // Показываем тип осмотра текстом вместо select
+    const inspType = cached.inspectionType
+      || cached.result?.inspection_type
+      || cached.result?.data?.inspection_type
+      || '';
+    const sel = document.getElementById('inspectionType');
+    const txt = document.getElementById('inspectionTypeText');
+    if (sel && txt) {
+      sel.style.display = 'none';
+      txt.style.display = '';
+      txt.textContent = inspType || '—';
+    }
+
     setTimeout(() => {
       const rw = document.getElementById('resultWrap');
       if (rw) rw.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1445,26 +1480,71 @@
 
   // ── Upload events moved to DOMContentLoaded ──
 
-  function handleFile(file) {
+  function validateFile(file) {
     const allowed = ['image/jpeg','image/png','image/webp'];
-    if (!allowed.includes(file.type)) { showError('Формат не поддерживается. Используйте JPG, PNG или WebP.'); return; }
-    if (file.size > 10*1024*1024) { showError('Файл слишком большой. Максимум 10 МБ.'); return; }
-    if (file.size < 10*1024)      { showError('Файл слишком маленький. Минимум 10 КБ.'); return; }
-
-    currentFile = file;
-    // photo_uploaded tracked in handleFiles
-    const reader = new FileReader();
-    reader.onload = e => {
-      previewImg.src = e.target.result;
-      previewName.textContent = file.name + ' · ' + formatSize(file.size);
-      uploadZone.style.display = 'none';
-      previewWrap.classList.add('visible');
-      analyzeBtn.disabled = false;
-      hideError();
-      hideResult();
-    };
-    reader.readAsDataURL(file);
+    if (!allowed.includes(file.type)) { showError('Формат не поддерживается. Используйте JPG, PNG или WebP.'); return null; }
+    if (file.size > 10*1024*1024) { showError('Файл слишком большой. Максимум 10 МБ.'); return null; }
+    if (file.size < 10*1024)      { showError('Файл слишком маленький. Минимум 10 КБ.'); return null; }
+    return file;
   }
+
+  function handleFiles(files) {
+    const newFiles = Array.from(files).slice(0, 5 - currentFiles.length);
+    const valid = newFiles.map(f => validateFile(f)).filter(Boolean);
+    if (!valid.length) return;
+    currentFiles = [...currentFiles, ...valid].slice(0, 5);
+    renderPreviews();
+    hideError();
+    hideResult();
+  }
+
+  let mainPhotoIdx = 0;
+
+  function renderPreviews() {
+    if (!currentFiles.length) return;
+    uploadZone.style.display = 'none';
+    previewWrap.style.display = 'block';
+    if (analyzeBtn) analyzeBtn.disabled = false;
+
+    const total = currentFiles.length;
+    if (previewName) previewName.textContent = total === 1
+      ? currentFiles[0].name + ' · ' + formatSize(currentFiles[0].size)
+      : total + ' фото';
+
+    const container = document.getElementById('multiPreview');
+    if (!container) return;
+
+    const readers = currentFiles.map((file, idx) => new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = e => resolve({ src: e.target.result, idx });
+      reader.readAsDataURL(file);
+    }));
+
+    Promise.all(readers).then(results => {
+      if (mainPhotoIdx >= results.length) mainPhotoIdx = 0;
+      const main = results[mainPhotoIdx];
+
+      const mainHtml = `<div class="multi-preview-main">
+        <img src="${main.src}" alt="Главное фото">
+      </div>`;
+
+      const thumbsHtml = results.map(({ src, idx }) => `
+        <div class="multi-preview-thumb ${idx === mainPhotoIdx ? 'active' : ''}">
+          <img src="${src}" alt="Фото ${idx+1}" onclick="window.setMainPhoto(${idx})">
+          <button class="remove-one" onclick="removeOneFile(${idx})">×</button>
+        </div>
+      `).join('') + (currentFiles.length < 5
+        ? `<button class="add-more-btn" onclick="document.getElementById('fileInput').click()">+<br>фото</button>`
+        : '');
+
+      container.innerHTML = mainHtml + `<div class="multi-preview-thumbs">${thumbsHtml}</div>`;
+    });
+  }
+
+  window.setMainPhoto = function(idx) {
+    mainPhotoIdx = idx;
+    renderPreviews();
+  };
 
   window.removeOneFile = function(idx) {
     currentFiles.splice(idx, 1);
@@ -1477,6 +1557,7 @@
 
   function removeFile() {
     currentFiles = [];
+    mainPhotoIdx = 0;
     fileInput.value = '';
     previewWrap.style.display = 'none';
     uploadZone.style.display = '';
@@ -1484,6 +1565,10 @@
     hideResult();
     const container = document.getElementById('multiPreview');
     if (container) container.innerHTML = '';
+    // Возвращаем select типа осмотра
+    const sel = document.getElementById('inspectionType');
+    const txt = document.getElementById('inspectionTypeText');
+    if (sel && txt) { sel.style.display = ''; txt.style.display = 'none'; }
   }
 
   // ── Steps ──
@@ -1498,20 +1583,23 @@
 
   // ── Analyze ──
   async function doAnalyze() {
-    if (!currentFile) return;
+    if (!currentFiles.length) { showError('Выберите фото для анализа'); return; }
 
     loadingBox.classList.add('visible');
     analyzeBtn.disabled = true;
+
+    // Блокируем кнопки удаления и PDF на время анализа
+    const removeAllBtn = document.querySelector('.btn-remove');
+    const pdfHeaderBtn = document.getElementById('printBtn');
+    if (removeAllBtn) removeAllBtn.disabled = true;
+    if (pdfHeaderBtn) pdfHeaderBtn.disabled = true;
+
     hideError();
     hideResult();
-
-    if (!currentFiles.length) return;
     const fd = new FormData();
-    fd.append('file', currentFiles[0]); // основное фото
-    // Остальные фото добавляем как дополнительные (бэкенд возьмёт первое)
-    for (let i = 1; i < currentFiles.length; i++) {
-      fd.append('extra_files', currentFiles[i]);
-    }
+    fd.append('file', currentFiles[mainPhotoIdx || 0]); // главное фото
+    // Остальные фото
+    currentFiles.forEach((f, i) => { if (i !== (mainPhotoIdx || 0)) fd.append('extra_files', f); });
     fd.append('inspection_type', inspectionType.value);
     fd.append('photos_count', currentFiles.length);
 
@@ -1564,6 +1652,9 @@
     } finally {
       loadingBox.classList.remove('visible');
       analyzeBtn.disabled = false;
+      const removeAllBtn = document.querySelector('.btn-remove');
+      if (removeAllBtn) removeAllBtn.disabled = false;
+      // PDF-кнопка в хедере управляется через renderResult/printBtn visibility
     }
   }
 
@@ -1605,12 +1696,16 @@
         </div>
       </div>`;
 
-    // Quality alert
-    if (meta.photo_quality !== 'good') {
-      const isPoor = meta.photo_quality === 'poor';
-      html += `<div class="quality-alert${isPoor?' poor':''}">
-        <strong>Качество фото: ${isPoor ? 'низкое' : 'среднее'}</strong>
-        ${(meta.missing_angles||[]).length ? `<div class="quality-hint">Рекомендуем добавить ракурсы: ${esc((meta.missing_angles||[]).join(', '))}</div>` : ''}
+    // Quality alert — показываем всегда
+    {
+      const q = meta.photo_quality || 'good';
+      const isPoor = q === 'poor';
+      const isGood = q === 'good';
+      const label = isGood ? 'хорошее' : isPoor ? 'низкое' : 'среднее';
+      const alertClass = isGood ? '' : isPoor ? ' poor' : '';
+      html += `<div class="quality-alert${alertClass}">
+        <strong>Качество фото: ${label}</strong>
+        ${(!isGood && (meta.missing_angles||[]).length) ? `<div class="quality-hint">Рекомендуем добавить ракурсы: ${esc((meta.missing_angles||[]).join(', '))}</div>` : ''}
       </div>`;
     }
 
@@ -1669,14 +1764,12 @@
 
     // Meta
     html += `<div class="meta-row">
-      ${json.model_used ? `<span>Модель: ${esc(json.model_used)}</span>` : ''}
-      ${json.tokens_used != null ? `<span>Токенов: ${json.tokens_used}</span>` : ''}
       <span>${new Date(json.processed_at).toLocaleString('ru-RU')}</span>
     </div>`;
 
     // Actions
     html += `<div class="action-row">
-      <button class="btn-primary" onclick="window.print()">Распечатать отчёт</button>
+      <button class="btn-primary" onclick="downloadPDF()">Скачать PDF-отчёт</button>
       <button class="btn-outline" onclick="resetForm()">Новый анализ</button>
     </div>`;
 
@@ -1956,7 +2049,7 @@
       html: `
         <div class="popup-about-hero">
           <div class="popup-about-logo">АВТО<span>СКАН</span></div>
-          <div class="popup-about-sub">Анализ повреждений автомобиля · Искусственный интеллект</div>
+          <div class="popup-about-sub">Анализ повреждений автомобиля</div>
         </div>
 
         <p><strong>АвтоСкан</strong> — онлайн-сервис для автоматической оценки повреждений автомобиля по фотографии. Нейросеть анализирует снимок, определяет все видимые дефекты кузова и рассчитывает стоимость ремонта за 30 секунд.</p>
@@ -2008,7 +2101,7 @@
     },
 
     terms: {
-      title: 'Условия использования',
+      title: 'Terms of Use — Условия использования',
       html: `
         <h2>1. Предмет соглашения</h2>
         <p>Настоящие Условия регулируют использование сервиса АвтоСкан (car-scan.ru) для автоматической оценки повреждений транспортных средств на основе фотографий с применением технологий искусственного интеллекта.</p>
@@ -2054,7 +2147,7 @@
     },
 
     privacy: {
-      title: 'Политика конфиденциальности',
+      title: 'Privacy Policy — Политика конфиденциальности',
       html: `
         <h2>1. Оператор данных</h2>
         <p>Оператором персональных данных является сервис АвтоСкан (car-scan.ru). Обработка персональных данных осуществляется в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p>
@@ -2167,6 +2260,118 @@
     initAuth();
   });
 
+  async function downloadPDF() {
+    const btn = document.querySelector('.btn-primary[onclick="downloadPDF()"]');
+    const headerBtn = document.getElementById('printBtn');
+    const originalText = btn ? btn.textContent : '';
+    if (btn) { btn.textContent = 'Формируем PDF…'; btn.disabled = true; }
+    if (headerBtn) { headerBtn.textContent = 'Формируем…'; headerBtn.disabled = true; }
+
+    try {
+      const { jsPDF } = window.jspdf;
+      const resultWrapEl = document.getElementById('resultWrap');
+
+      // Собираем данные для PDF до клонирования
+      const photoImgEl = document.querySelector('#multiPreview .multi-preview-main img');
+      const photoSrc = photoImgEl ? photoImgEl.src : null;
+
+      const inspTypeSel = document.getElementById('inspectionType');
+      const inspTypeTxt = document.getElementById('inspectionTypeText');
+      let inspectionLabel = '';
+      if (inspTypeTxt && inspTypeTxt.style.display !== 'none') {
+        inspectionLabel = inspTypeTxt.textContent.trim();
+      } else if (inspTypeSel) {
+        inspectionLabel = inspTypeSel.options[inspTypeSel.selectedIndex]?.text || '';
+      }
+
+      const canvas = await html2canvas(resultWrapEl, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#f2f2f0',
+        logging: false,
+        onclone: (doc) => {
+          // Скрываем кнопки действий в клоне для чистого PDF
+          const actionRow = doc.querySelector('.action-row');
+          if (actionRow) actionRow.style.display = 'none';
+
+          // Вставляем блок с фото и типом осмотра в начало resultWrap
+          const rw = doc.getElementById('resultWrap');
+          if (!rw) return;
+
+          const header = doc.createElement('div');
+          header.style.cssText = `
+            background: #ffffff;
+            border: 1px solid rgba(24,24,24,0.15);
+            padding: 16px;
+            margin-bottom: 1px;
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+          `;
+
+          // Фото
+          let photoHtml = '';
+          if (photoSrc) {
+            photoHtml = `<img src="${photoSrc}" style="width:160px;height:120px;object-fit:cover;flex-shrink:0;border:1px solid rgba(24,24,24,0.15);display:block;">`;
+          }
+
+          // Тип осмотра
+          const infoHtml = `
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#888888;margin-bottom:6px;font-weight:500;">Тип осмотра</div>
+              <div style="font-size:15px;font-weight:500;color:#181818;">${inspectionLabel || '—'}</div>
+              <div style="margin-top:12px;font-size:11px;color:#bbb;">car-scan.ru · АвтоСкан</div>
+            </div>
+          `;
+
+          header.innerHTML = (photoSrc ? photoHtml : '') + infoHtml;
+          rw.insertBefore(header, rw.firstChild);
+        }
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentW = pageW - margin * 2;
+      const imgH = (canvas.height * contentW) / canvas.width;
+
+      // Разбиваем на страницы если контент длинный
+      let posY = margin;
+      let remaining = imgH;
+      let srcY = 0;
+      const pageContent = pageH - margin * 2;
+
+      while (remaining > 0) {
+        const sliceH = Math.min(remaining, pageContent);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = (sliceH / contentW) * canvas.width;
+        const ctx = sliceCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, srcY * (canvas.width / contentW), canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+        const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+        pdf.addImage(sliceData, 'JPEG', margin, posY, contentW, sliceH);
+
+        remaining -= sliceH;
+        srcY += sliceH;
+        if (remaining > 0) { pdf.addPage(); posY = margin; }
+      }
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('ru-RU').replace(/\./g, '-');
+      pdf.save(`avtoskan-report-${dateStr}.pdf`);
+
+    } catch (e) {
+      console.error('PDF error:', e);
+      alert('Не удалось создать PDF. Попробуйте ещё раз.');
+    } finally {
+      if (btn) { btn.textContent = originalText; btn.disabled = false; }
+      if (headerBtn) { headerBtn.textContent = 'Скачать PDF'; headerBtn.disabled = false; }
+    }
+  }
+
   function resetForm() {
     removeFile();
     hideError();
@@ -2174,6 +2379,12 @@
     // document.getElementById('servicesWrap').classList.remove('visible');
     document.getElementById('paywall').classList.remove('visible');
     document.getElementById('printBtn').style.display = 'none';
+
+    // Возвращаем select типа осмотра
+    const sel = document.getElementById('inspectionType');
+    const txt = document.getElementById('inspectionTypeText');
+    if (sel && txt) { sel.style.display = ''; txt.style.display = 'none'; }
+
     window.scrollTo({ top:0, behavior:'smooth' });
   }
 </script>
@@ -2210,18 +2421,17 @@
       </div>
     </div>
     <div class="cabinet-footer">
-      <button class="btn-logout-full" onclick="handleLogout()">Выйти из аккаунта</button>
+            <button class="btn-logout-full" onclick="handleLogout()">Выйти из аккаунта</button>
     </div>
   </div>
 </div>
 
-
-<!-- ── Info Popups ── -->
+<!-- Info popup -->
 <div class="popup-overlay" id="popupOverlay" onclick="if(event.target===this)closePopup()">
   <div class="popup">
     <div class="popup-header">
       <div class="popup-title" id="popupTitle"></div>
-      <button class="popup-close" onclick="closePopup()">×</button>
+      <button class="btn-close" onclick="closePopup()">&#xd7;</button>
     </div>
     <div class="popup-body" id="popupBody"></div>
   </div>

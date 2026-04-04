@@ -15,7 +15,7 @@ from typing import List, Optional, Literal
 import httpx
 import openai
 import asyncpg
-from fastapi import FastAPI, File, UploadFile, HTTPException, Header, Request
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
@@ -425,7 +425,7 @@ async def log_event(data: EventLog):
 @app.post("/analyze")
 async def analyze_image(
     file: UploadFile = File(...),
-    inspection_type: str = "страховой случай",
+    inspection_type: str = Form(default="страховой случай"),
     x_user_id: Optional[str] = Header(None),
 ):
     """Анализ фото. x-user-id — ID пользователя из Supabase Auth."""
@@ -438,7 +438,7 @@ async def analyze_image(
                 x_user_id
             )
             is_admin = ADMIN_EMAIL and profile and profile['email'] == ADMIN_EMAIL
-            if not is_admin and profile and profile['analyses_count'] >= 1 and not profile['is_paid']:
+            if not is_admin and profile and profile['analyses_count'] >= 3 and not profile['is_paid']:
                 raise HTTPException(
                     status_code=402,
                     detail="Бесплатный анализ уже использован"
