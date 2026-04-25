@@ -786,6 +786,8 @@
     .btn-pay:hover { opacity: 0.82; }
     .paywall-note { font-size: 11px; color: var(--muted); }
 
+    .paywall-note a { color: var(--black); text-decoration: underline; }
+
     /* ── Cabinet modal ── */
     .cabinet-overlay {
       display: none; position: fixed; inset: 0;
@@ -1070,6 +1072,172 @@
       transition: border-color 0.15s;
     }
     .add-more-btn:hover { border-color: rgba(255,255,255,0.5); color: #fff; }
+
+    /* ── Форма обратной связи ── */
+    .feedback-section {
+      margin-top: 48px;
+      border-top: 1px solid var(--border);
+      padding-top: 32px;
+    }
+    .feedback-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--black);
+      margin-bottom: 6px;
+    }
+    .feedback-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+    .feedback-type-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .feedback-type-btn {
+      padding: 6px 14px;
+      font-family: inherit;
+      font-size: 12px;
+      border: 1px solid var(--border-strong);
+      background: none;
+      cursor: pointer;
+      color: var(--black);
+      transition: background 0.15s;
+    }
+    .feedback-type-btn.active {
+      background: var(--black);
+      color: var(--white);
+    }
+    .feedback-textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-strong);
+      font-family: inherit;
+      font-size: 13px;
+      resize: vertical;
+      min-height: 96px;
+      outline: none;
+      color: var(--black);
+      background: var(--white);
+      margin-bottom: 10px;
+    }
+    .feedback-textarea:focus {
+      outline: 2px solid var(--black);
+      outline-offset: -2px;
+    }
+    .feedback-textarea::placeholder { color: #bbb; }
+    .feedback-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .feedback-email-input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid var(--border-strong);
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      color: var(--black);
+      background: var(--white);
+      min-width: 0;
+    }
+    .feedback-email-input:focus {
+      outline: 2px solid var(--black);
+      outline-offset: -2px;
+    }
+    .feedback-email-input::placeholder { color: #bbb; }
+    .feedback-submit {
+      padding: 10px 20px;
+      background: var(--black);
+      color: var(--white);
+      border: none;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+      flex-shrink: 0;
+    }
+    .feedback-submit:hover { background: #333; }
+    .feedback-submit:disabled { background: #999; cursor: default; }
+    .feedback-success {
+      display: none;
+      font-size: 13px;
+      color: #10b981;
+      margin-top: 10px;
+    }
+    .feedback-success.visible { display: block; }
+    .feedback-error {
+      display: none;
+      font-size: 12px;
+      color: #ef4444;
+      margin-top: 6px;
+    }
+    .feedback-error.visible { display: block; }
+
+    /* ── Баннер сохранения для гостей ── */
+    .save-banner {
+      display: none;
+      margin-top: 20px;
+      background: var(--black);
+      color: var(--white);
+      padding: 18px 20px;
+      border-left: 3px solid #FF5722;
+    }
+    .save-banner.visible { display: block; }
+    .save-banner-title { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+    .save-banner-sub { font-size: 12px; color: #aaa; margin-bottom: 14px; }
+    .save-banner-btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background: #FF5722;
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .save-banner-skip {
+      margin-left: 12px;
+      font-size: 12px;
+      color: #666;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: inherit;
+    }
+    .save-banner-skip:hover { color: #fff; }
+
+    /* Гостевая панель */
+    .guest-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 8px 0;
+      margin-bottom: 4px;
+    }
+    .guest-bar-text { font-size: 12px; color: var(--muted); }
+    .btn-login {
+      padding: 7px 16px;
+      border: 1px solid var(--border-strong);
+      background: none;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--black);
+      transition: background 0.15s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-login:hover { background: var(--black); color: var(--white); }
   </style>
   <meta name="yandex-verification" content="c65ee41bb12bb7ab" />
   <!-- Yandex.Metrika counter -->
@@ -1110,6 +1278,12 @@
       </div>
     </div>
   </header>
+
+  <!-- Гостевая панель -->
+  <div class="guest-bar" id="guestBar">
+    <span class="guest-bar-text">Уже есть аккаунт?</span>
+    <a class="btn-login" href="/auth.html">Войти</a>
+  </div>
 
   <!-- User bar -->
   <div class="user-bar" id="userBar">
@@ -1188,6 +1362,14 @@
   <!-- Result -->
   <div class="result-wrap" id="resultWrap"></div>
 
+  <!-- Баннер для гостей -->
+  <div class="save-banner" id="saveBanner">
+    <div class="save-banner-title">Сохраните результат</div>
+    <div class="save-banner-sub">Войдите через email — результат сохранится в личном кабинете. Бесплатно, 30 секунд.</div>
+    <a class="save-banner-btn" href="/auth.html">Сохранить результат →</a>
+    <button class="save-banner-skip" onclick="document.getElementById('saveBanner').classList.remove('visible')">Пропустить</button>
+  </div>
+
 
   <!-- Paywall -->
   <div class="paywall" id="paywall">
@@ -1196,8 +1378,8 @@
       Вы использовали 1 бесплатный анализ.<br>
       Чтобы продолжить — напишите нам, мы откроем доступ вручную.
     </div>
-    <a class="btn-pay" href="mailto:carscan.ai@yandex.com?subject=Запрос доступа АвтоСкан&body=Здравствуйте, прошу открыть доступ к сервису для моего аккаунта.">Написать нам</a>
-    <div class="paywall-note"><a href="mailto:carscan.ai@yandex.com">carscan.ai@yandex.com</a> · ответим в течение часа</div>
+    <a class="btn-pay" href="/cdn-cgi/l/email-protection#bedddfcccddddfd090dfd7fec7dfd0dadbc690ddd1d381cdcbdcd4dbddca836e296e0e6e016f3e6e006f3f9e6e0a6e006f3f6f3c6f3d6e016e0e9e6e2e6e0c6f3c6e006e1f6e046e0e6e0398dcd1dac7836e296e0a6f3e6e0e6e0c6f3f6f3c6e0c6f3d6e076f3c6e0b929e6e016f3e6e006f366f3d9e6e006f3c6e046f3e6f356f3c6f329e6e0a6e006f3f6f3c6f3d6e019e6e049e6f3f6e0b6f3e6e0c6e066f3f6f3d9e6e0a6e056f319e6e026e006e0b6e0d6e009e6e0e6e046e046e0e6f3d6e036f3c6e0e90">Написать нам</a>
+    <div class="paywall-note"><a href="/cdn-cgi/l/email-protection#3e5d5f4c4d5d5f50105f577e475f505a5b46105d5153"><span class="__cf_email__" data-cfemail="4a292b3839292b24642b230a332b242e2f3264292527">[email&#160;protected]</span></a> · ответим в течение часа</div>
   </div>
 
   <!-- Services (отключено временно) -->
@@ -1205,6 +1387,31 @@
   <div class="services-wrap" id="servicesWrap" style="display:none!important"></div>
 
 
+
+  <!-- Форма обратной связи -->
+  <div class="feedback-section">
+    <div class="feedback-title">Обратная связь</div>
+    <div class="feedback-sub">Расскажите что работает не так, чего не хватает, или попросите открыть доступ к новым типам анализа</div>
+
+    <div class="feedback-type-row">
+      <button class="feedback-type-btn active" onclick="setFeedbackType(this, 'bug')">Ошибка</button>
+      <button class="feedback-type-btn" onclick="setFeedbackType(this, 'idea')">Идея</button>
+      <button class="feedback-type-btn" onclick="setFeedbackType(this, 'access')">Открыть доступ</button>
+      <button class="feedback-type-btn" onclick="setFeedbackType(this, 'other')">Другое</button>
+    </div>
+
+    <textarea class="feedback-textarea" id="feedbackText"
+      placeholder="Опишите проблему или предложение..."></textarea>
+
+    <div class="feedback-row">
+      <input class="feedback-email-input" id="feedbackEmail" type="email"
+        placeholder="Email для ответа (необязательно)">
+      <button class="feedback-submit" id="feedbackSubmit" onclick="submitFeedback()">Отправить</button>
+    </div>
+
+    <div class="feedback-success" id="feedbackSuccess">Спасибо! Мы получили ваше сообщение и ответим на email если он указан.</div>
+    <div class="feedback-error" id="feedbackError">Не удалось отправить. Попробуйте ещё раз.</div>
+  </div>
 
   <div class="footnote">
     Оценка носит предварительный характер.<br>
@@ -1219,7 +1426,7 @@
 
 </div><!-- /page -->
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
   // Кэш анализов — данные хранятся в памяти, onclick передаёт только id
   window._analysisCache = {};
 
@@ -1273,17 +1480,18 @@
   // logout            → выход из аккаунта
   // page_view         → просмотр страницы (с user_id)
 
-  // ── Auth gate: redirect to /auth.html if not logged in ──
+  // ── Auth — гостевой режим: показываем страницу всем ──
   async function initAuth() {
+    document.body.style.visibility = 'visible';
     const { data: { session } } = await sb.auth.getSession();
+
     if (!session) {
-      // Мгновенный редирект — скрываем страницу до редиректа чтобы не было мигания
-      document.body.style.visibility = 'hidden';
-      window.location.replace('/auth.html');
+      // Гость — показываем страницу без userBar, анализ доступен
+      track('page_view');
       return;
     }
+
     currentUser = session.user;
-    document.body.style.visibility = 'visible'; // показываем страницу
 
     // Создаём/получаем профиль через наш бэкенд
     await fetch('/api/profile', {
@@ -1293,10 +1501,10 @@
     });
     const profileRes = await fetch('/api/profile/' + currentUser.id);
     currentProfile = profileRes.ok ? await profileRes.json() : null;
+
     // Фиксируем согласие в БД и localStorage
     if (currentProfile) {
       localStorage.setItem('ao_consent_' + currentUser.email, '1');
-      // Если consent_given ещё не стоит — ставим
       if (!currentProfile.consent_given) {
         fetch('/api/profile/' + currentUser.id + '/consent', { method: 'POST' });
       }
@@ -1304,11 +1512,15 @@
 
     // Show user bar
     document.getElementById('userBar').classList.add('visible');
+    const guestBar = document.getElementById('guestBar');
+    if (guestBar) guestBar.style.display = 'none';
+    const fbEmail = document.getElementById('feedbackEmail');
+    if (fbEmail && currentUser?.email) fbEmail.placeholder = currentUser.email;
     document.getElementById('userEmail').textContent = currentUser.email;
     updateAnalysesBadge();
 
     // Show paywall if free limit reached and not paid
-    if (currentProfile && currentProfile.analyses_count >= 1 && !currentProfile.is_paid) {
+    if (currentProfile && currentProfile.analyses_count >= 3 && !currentProfile.is_paid) {
       showPaywall();
       track('paywall_shown', { analyses_count: currentProfile.analyses_count });
     }
@@ -1318,6 +1530,7 @@
 
   function updateAnalysesBadge() {
     if (!currentProfile) return;
+    if (!currentUser) return;
     const el = document.getElementById('userAnalyses');
     const isPaid = currentProfile.is_paid;
     const count  = currentProfile.analyses_count || 0;
@@ -1337,6 +1550,7 @@
   }
 
   async function handleLogout() {
+    if (!currentUser) { window.location.href = '/auth.html'; return; }
     track('logout');
     await sb.auth.signOut();
     window.location.href = '/auth.html';
@@ -1634,6 +1848,11 @@
       });
 
       renderResult(json);
+      // Показываем баннер сохранения для незарегистрированных
+      if (!currentUser) {
+        const sb = document.getElementById('saveBanner');
+        if (sb) sb.classList.add('visible');
+      }
 
       // Обновляем локальный профиль после анализа
       if (currentUser && currentProfile) {
@@ -2227,6 +2446,71 @@
     if (e.key === 'Escape') closePopup();
   });
 
+  // ── Форма обратной связи ──
+  let feedbackType = 'bug';
+
+  function setFeedbackType(btn, type) {
+    feedbackType = type;
+    document.querySelectorAll('.feedback-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const placeholders = {
+      bug: 'Опишите что пошло не так, на каком шаге возникла проблема...',
+      idea: 'Поделитесь идеей — что добавить или улучшить...',
+      access: 'Укажите какой тип анализа нужен: осмотр при покупке, корпоративный флот, каршеринг...',
+      other: 'Напишите что хотели бы сказать...',
+    };
+    document.getElementById('feedbackText').placeholder = placeholders[type] || placeholders.other;
+  }
+
+  async function submitFeedback() {
+    const text = document.getElementById('feedbackText').value.trim();
+    const emailInput = document.getElementById('feedbackEmail').value.trim();
+    // Если email не указан — берём email авторизованного пользователя
+    const email = emailInput || currentUser?.email || null;
+    const btn = document.getElementById('feedbackSubmit');
+    const success = document.getElementById('feedbackSuccess');
+    const error = document.getElementById('feedbackError');
+
+    if (!text) {
+      document.getElementById('feedbackText').focus();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Отправляем...';
+    success.classList.remove('visible');
+    error.classList.remove('visible');
+
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: feedbackType,
+          text,
+          email,
+          user_id: currentUser?.id || null,
+          url: window.location.href,
+        })
+      });
+
+      if (res.ok) {
+        success.classList.add('visible');
+        document.getElementById('feedbackText').value = '';
+        document.getElementById('feedbackEmail').value = '';
+        track('feedback_sent', { type: feedbackType });
+      } else {
+        throw new Error('Server error');
+      }
+    } catch(e) {
+      error.classList.add('visible');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Отправить';
+    }
+  }
+
   // ── Init ──
   document.addEventListener('DOMContentLoaded', () => {
     uploadZone    = document.getElementById('uploadZone');
@@ -2419,11 +2703,10 @@
       </div>
     </div>
     <div class="cabinet-footer">
-            <button class="btn-logout-full" onclick="handleLogout()">Выйти из аккаунта</button>
-    </div>
-  </div>
+      <button class="btn-logout-full" onclick="handleLogout()">Выйти из аккаунта</button>
 </div>
-
+</div>
+</div>
 <!-- Info popup -->
 <div class="popup-overlay" id="popupOverlay" onclick="if(event.target===this)closePopup()">
   <div class="popup">

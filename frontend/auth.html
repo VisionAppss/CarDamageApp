@@ -287,6 +287,148 @@
       .logo { font-size: 22px; }
       .otp-cell { height: 48px; font-size: 17px; }
     }
+
+     /* ── Auth overlay ── */
+     .auth-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #f2f2f0;
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    .auth-overlay.visible { display: flex; }
+    .auth-overlay-inner {
+      width: 100%;
+      max-width: 440px;
+      padding: 0 16px;
+    }
+    .auth-overlay-logo {
+      font-size: 28px;
+      font-weight: 400;
+      letter-spacing: -2px;
+      color: var(--black);
+      margin-bottom: 6px;
+    }
+    .auth-overlay-logo span { color: var(--c-accent); }
+    .auth-overlay-tagline {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+    }
+
+    /* ── Info popups ── */
+    .popup-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .popup-overlay.visible { display: flex; }
+    @media (min-width: 600px) {
+      .popup-overlay { align-items: center; padding: 20px; }
+    }
+    .popup {
+      background: var(--white);
+      width: 100%;
+      max-width: 600px;
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-strong);
+      animation: modalUp 0.2s ease-out;
+    }
+    @keyframes modalUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .popup-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-shrink: 0;
+    }
+    .popup-title { font-size: 15px; font-weight: 500; color: var(--black); }
+    .popup-close {
+      background: none; border: none; font-size: 20px;
+      color: var(--muted); cursor: pointer; padding: 0;
+      line-height: 1; transition: color 0.15s; flex-shrink: 0;
+    }
+    .popup-close:hover { color: var(--black); }
+    .popup-body {
+      padding: 20px 24px;
+      overflow-y: auto;
+      flex: 1;
+      font-size: 13px;
+      color: #444;
+      line-height: 1.7;
+    }
+    .popup-body::-webkit-scrollbar { width: 3px; }
+    .popup-body::-webkit-scrollbar-track { background: #f5f5f5; }
+    .popup-body::-webkit-scrollbar-thumb { background: #ccc; }
+    .popup-body h2 {
+      font-size: 13px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; color: var(--muted);
+      margin: 20px 0 8px;
+    }
+    .popup-body h2:first-child { margin-top: 0; }
+    .popup-body p { margin-bottom: 10px; }
+    .popup-body ul { padding-left: 18px; margin-bottom: 10px; }
+    .popup-body ul li { margin-bottom: 5px; }
+    .popup-body strong { color: var(--black); font-weight: 500; }
+    .popup-body a { color: var(--black); text-underline-offset: 2px; }
+    .popup-about-hero {
+      background: var(--black);
+      color: var(--white);
+      margin: -20px -24px 20px;
+      padding: 28px 24px;
+    }
+    .popup-about-logo {
+      font-size: 22px;
+      font-weight: 400;
+      letter-spacing: -2px;
+      margin-bottom: 6px;
+    }
+    .popup-about-logo span { color: var(--c-accent); }
+    .popup-about-sub { font-size: 12px; color: rgba(255,255,255,0.6); }
+    .popup-stat-row {
+      display: flex;
+      gap: 1px;
+      margin: 16px 0;
+    }
+    .popup-stat {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 12px;
+      text-align: center;
+    }
+    .popup-stat-val {
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--black);
+      letter-spacing: -0.5px;
+    }
+    .popup-stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .btn-close {
+      background: none; border: none; font-size: 20px; color: var(--muted);
+      cursor: pointer; padding: 0; line-height: 1; transition: color 0.15s;
+    }
+    .btn-close:hover { color: var(--black); }
   </style>
 </head>
 <body>
@@ -296,7 +438,7 @@
     <div class="header-inner">
       <div>
         <div class="logo">АВТО<span>СКАН</span></div>
-        <div class="tagline">Анализ повреждений по фотографии · ИИ</div>
+        <div class="tagline">Анализ повреждений по фотографии</div>
       </div>
     </div>
   </header>
@@ -351,9 +493,14 @@
   </div>
 
   <div class="footnote">
-    Оценка носит предварительный характер. Для точного расчёта рекомендуем очный осмотр.
+    Оценка носит предварительный характер.<br>
+    Для точного расчёта рекомендуем очный осмотр.
     <br>
-    <a href="/about" target="_blank">О сервисе</a><span class="sep">·</span><a href="/terms" target="_blank">Terms of Use</a><span class="sep">·</span><a href="/privacy" target="_blank">Privacy Policy</a>
+    <a href="#" onclick="openPopup('about');return false">О сервисе</a>
+    <span style="margin:0 6px;color:#ddd">&middot;</span>
+    <a href="#" onclick="openPopup('terms');return false">Условия использования</a>
+    <span style="margin:0 6px;color:#ddd">&middot;</span>
+    <a href="#" onclick="openPopup('privacy');return false">Политика конфиденциальности</a>
   </div>
 
 </div>
@@ -389,7 +536,7 @@
         <h3>5. Передача третьим лицам</h3>
         <p>Мы не продаём и не передаём данные третьим лицам. YandexGPT обрабатывает изображения согласно политике Яндекса.</p>
         <h3>6. Права пользователя</h3>
-        <p>Запрос на копию, исправление или удаление данных: <strong><a href="mailto:carscan.ai@yandex.com">carscan.ai@yandex.com</a></strong></p>
+        <p>Запрос на копию, исправление или удаление данных: <strong><a href="/cdn-cgi/l/email-protection#fd9e9c8f8e9e9c93d39c94bd849c93999885d39e9290"><span class="__cf_email__" data-cfemail="197a786b6a7a7877377870596078777d7c61377a7674">[email&#160;protected]</span></a></strong></p>
       </div>
 
       <div class="doc" id="doc-terms">
@@ -432,7 +579,7 @@
 </div>
 
 <!-- Supabase JS -->
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
   // ── Supabase init ──
@@ -571,8 +718,231 @@
   function switchTab(t) {
     document.querySelectorAll('.modal-tab').forEach(x=>x.classList.remove('active'));
     document.querySelectorAll('.doc').forEach(x=>x.classList.remove('active'));
-    $('tab-'+t).classList.add('active'); $('doc-'+t).classList.add('active');
+    document.getElementById('tab-'+t).classList.add('active');
+    document.getElementById('doc-'+t).classList.add('active');
   }
 
-  function acceptConsent() {
-    if (!$('chkPrivacy').checked || !$('chkTerm
+  function closeConsent() {
+    document.getElementById('consentModal').classList.remove('visible');
+    pendingEmail = '';
+  }
+
+  async function confirmConsent() {
+    if (!pendingEmail) return;
+    const btn = document.getElementById('confirmConsentBtn');
+    btn.disabled = true; btn.textContent = '\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u0435\u043c\u2026';
+    try {
+      await fetch('/api/profile/consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: pendingEmail })
+      });
+      localStorage.setItem('ao_consent_' + pendingEmail, '1');
+    } catch(e) {}
+    document.getElementById('consentModal').classList.remove('visible');
+    doSendCode(pendingEmail);
+    pendingEmail = '';
+    btn.disabled = false; btn.textContent = '\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u044e \u0438 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0430\u044e';
+  }
+
+  // ── Info popups ──
+  const POPUP_CONTENT = {
+    about: {
+      title: 'О сервисе',
+      html: `
+        <div class="popup-about-hero">
+          <div class="popup-about-logo">АВТО<span>СКАН</span></div>
+          <div class="popup-about-sub">Анализ повреждений автомобиля</div>
+        </div>
+
+        <p><strong>АвтоСкан</strong> — онлайн-сервис для автоматической оценки повреждений автомобиля по фотографии. Нейросеть анализирует снимок, определяет все видимые дефекты кузова и рассчитывает стоимость ремонта за 30 секунд.</p>
+
+        <div class="popup-stat-row">
+          <div class="popup-stat">
+            <div class="popup-stat-val">30 с</div>
+            <div class="popup-stat-label">время анализа</div>
+          </div>
+          <div class="popup-stat">
+            <div class="popup-stat-val">85%</div>
+            <div class="popup-stat-label">точность</div>
+          </div>
+          <div class="popup-stat">
+            <div class="popup-stat-val">6</div>
+            <div class="popup-stat-label">типов повреждений</div>
+          </div>
+        </div>
+
+        <h2>Как это работает</h2>
+        <p>Вы загружаете фотографию автомобиля — нейросетевая модель Gemma 3 27B анализирует изображение и возвращает структурированный отчёт: список повреждений с описанием, рекомендуемый способ ремонта и диапазон стоимости по московским ценам с региональными коэффициентами.</p>
+
+        <h2>Что определяет сервис</h2>
+        <ul>
+          <li><strong>Царапины</strong> — поверхностные повреждения лакокрасочного покрытия</li>
+          <li><strong>Вмятины</strong> — деформации без нарушения покрытия</li>
+          <li><strong>Трещины и сколы</strong> — разрывы металла или пластика</li>
+          <li><strong>Деформации</strong> — нарушение геометрии детали</li>
+          <li><strong>Коррозия</strong> — ржавчина и окисление</li>
+          <li><strong>Серьёзность</strong> — от косметических до критических повреждений</li>
+        </ul>
+
+        <h2>Для кого</h2>
+        <ul>
+          <li>Водители после ДТП — быстро понять масштаб ущерба до обращения в страховую</li>
+          <li>Покупатели б/у авто — проверить состояние кузова перед сделкой</li>
+          <li>Автосервисы и дилеры — предварительная оценка при приёмке</li>
+          <li>Страховые агенты — первичный скрининг перед выездом эксперта</li>
+          <li>Каршеринг и корпоративный флот — фиксация повреждений при сдаче</li>
+        </ul>
+
+        <h2>Ограничения</h2>
+        <p>Результат анализа носит <strong>предварительный, информационный характер</strong> и не является официальной технической экспертизой. Для страховых выплат, судебных разбирательств и официальных документов требуется очный осмотр сертифицированным экспертом.</p>
+
+        <h2>Контакты</h2>
+        <p>По вопросам работы сервиса, доступа и сотрудничества:<br>
+        <a href="mailto:carscan.ai@yandex.com">carscan.ai@yandex.com</a></p>
+      `
+    },
+
+    terms: {
+      title: 'Terms of Use — Условия использования',
+      html: `
+        <h2>1. Предмет соглашения</h2>
+        <p>Настоящие Условия регулируют использование сервиса АвтоСкан (car-scan.ru) для автоматической оценки повреждений транспортных средств на основе фотографий с применением технологий искусственного интеллекта.</p>
+
+        <h2>2. Принятие условий</h2>
+        <p>Используя сервис, вы подтверждаете что прочитали, поняли и согласны с настоящими Условиями. Если вы не согласны — пожалуйста, не используйте сервис.</p>
+
+        <h2>3. Описание услуги</h2>
+        <p>АвтоСкан предоставляет автоматизированный анализ фотографий транспортных средств с целью выявления внешних повреждений и предварительной оценки стоимости ремонта. Анализ выполняется нейросетевой моделью без участия человека-эксперта.</p>
+
+        <h2>4. Ограничения ответственности</h2>
+        <p>Результаты анализа носят <strong>исключительно информационный и предварительный характер</strong>. Оператор не несёт ответственности за:</p>
+        <ul>
+          <li>Решения принятые на основании результатов анализа</li>
+          <li>Расхождение оценки с фактической стоимостью ремонта</li>
+          <li>Повреждения не обнаруженные вследствие качества фотографии</li>
+          <li>Использование результатов в официальных документах</li>
+        </ul>
+
+        <h2>5. Правила использования</h2>
+        <ul>
+          <li>Загружать фотографии только собственных или доверенных транспортных средств</li>
+          <li>Не использовать сервис для мошеннических действий со страховыми компаниями</li>
+          <li>Не загружать материалы нарушающие авторские права третьих лиц</li>
+          <li>Не осуществлять автоматизированные запросы без письменного согласия Оператора</li>
+        </ul>
+
+        <h2>6. Тарификация</h2>
+        <p>Первый анализ предоставляется бесплатно. Последующие анализы доступны по подписке. Оператор вправе изменять тарифы с уведомлением по email за 7 дней.</p>
+
+        <h2>7. Интеллектуальная собственность</h2>
+        <p>Алгоритмы, модели, дизайн и программный код сервиса являются собственностью Оператора. Результаты анализа конкретного транспортного средства принадлежат пользователю.</p>
+
+        <h2>8. Изменение условий</h2>
+        <p>Оператор вправе изменять настоящие Условия. Продолжение использования сервиса после уведомления означает принятие изменений.</p>
+
+        <h2>9. Применимое право</h2>
+        <p>Настоящие Условия регулируются законодательством Российской Федерации.</p>
+
+        <h2>10. Контакты</h2>
+        <p><a href="mailto:carscan.ai@yandex.com">carscan.ai@yandex.com</a></p>
+      `
+    },
+
+    privacy: {
+      title: 'Privacy Policy — Политика конфиденциальности',
+      html: `
+        <h2>1. Оператор данных</h2>
+        <p>Оператором персональных данных является сервис АвтоСкан (car-scan.ru). Обработка персональных данных осуществляется в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p>
+
+        <h2>2. Какие данные мы собираем</h2>
+        <ul>
+          <li><strong>Email-адрес</strong> — для идентификации, авторизации и уведомлений</li>
+          <li><strong>Фотографии транспортных средств</strong> — для выполнения анализа</li>
+          <li><strong>История анализов</strong> — результаты и параметры запросов</li>
+          <li><strong>Технические данные</strong> — IP-адрес, тип браузера, устройство, время запросов</li>
+          <li><strong>Данные аналитики</strong> — действия пользователя в интерфейсе (анонимизированы)</li>
+        </ul>
+
+        <h2>3. Цели обработки данных</h2>
+        <ul>
+          <li>Предоставление услуг по анализу повреждений</li>
+          <li>Аутентификация и управление аккаунтом</li>
+          <li>Улучшение качества нейросетевых моделей</li>
+          <li>Отправка уведомлений по запросу пользователя</li>
+          <li>Выявление и предотвращение мошеннических действий</li>
+        </ul>
+
+        <h2>4. Хранение данных</h2>
+        <p>Все данные хранятся на серверах в Российской Федерации. Сроки хранения:</p>
+        <ul>
+          <li>Фотографии — до 30 дней после анализа</li>
+          <li>Результаты анализов — до удаления аккаунта</li>
+          <li>Email и профиль — до удаления аккаунта</li>
+          <li>Технические логи — до 90 дней</li>
+        </ul>
+
+        <h2>5. Передача третьим лицам</h2>
+        <p>Мы не продаём и не передаём персональные данные третьим лицам за исключением:</p>
+        <ul>
+          <li><strong>Нейросетевые сервисы</strong> — изображения передаются для анализа согласно политике провайдера</li>
+          <li><strong>Аналитика</strong> — Яндекс Метрика собирает обезличенную статистику</li>
+          <li><strong>Требования законодательства</strong> — по запросу уполномоченных органов</li>
+        </ul>
+
+        <h2>6. Ваши права</h2>
+        <ul>
+          <li>Получить копию ваших персональных данных</li>
+          <li>Исправить неточные данные</li>
+          <li>Потребовать удаления данных («право на забвение»)</li>
+          <li>Отозвать согласие на обработку</li>
+        </ul>
+        <p>Для реализации прав обратитесь: <a href="mailto:carscan.ai@yandex.com">carscan.ai@yandex.com</a></p>
+
+        <h2>7. Cookie и аналитика</h2>
+        <p>Сервис использует cookie для авторизации и Яндекс Метрику для анализа использования. Продолжая работу с сайтом, вы соглашаетесь с использованием cookie.</p>
+
+        <h2>8. Безопасность</h2>
+        <p>Данные передаются по зашифрованному соединению HTTPS. Доступ к базе данных ограничен и защищён паролем. Фотографии хранятся изолированно от публичного доступа.</p>
+
+        <h2>9. Изменения политики</h2>
+        <p>При существенных изменениях мы уведомим пользователей по email. Актуальная версия всегда доступна на car-scan.ru.</p>
+
+        <h2>10. Контакты</h2>
+        <p>По вопросам обработки персональных данных:<br>
+        <a href="mailto:carscan.ai@yandex.com">carscan.ai@yandex.com</a></p>
+      `
+    }
+  };
+
+  function openPopup(type) {
+    const content = POPUP_CONTENT[type];
+    if (!content) return;
+    document.getElementById('popupTitle').textContent = content.title;
+    document.getElementById('popupBody').innerHTML = content.html;
+    document.getElementById('popupOverlay').classList.add('visible');
+    document.getElementById('popupBody').scrollTop = 0;
+  }
+
+  function closePopup() {
+    document.getElementById('popupOverlay').classList.remove('visible');
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePopup();
+  });
+</script>
+
+<!-- Info popup -->
+<div class="popup-overlay" id="popupOverlay" onclick="if(event.target===this)closePopup()">
+  <div class="popup">
+    <div class="popup-header">
+      <div class="popup-title" id="popupTitle"></div>
+      <button class="btn-close" onclick="closePopup()">&#xd7;</button>
+    </div>
+    <div class="popup-body" id="popupBody"></div>
+  </div>
+</div>
+
+</body>
+</html>
