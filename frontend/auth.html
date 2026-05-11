@@ -709,7 +709,6 @@
   }
 
   async function handleResend() {
-    resetOtp(); hideErr('otpError');
     await sb.auth.signInWithOtp({ email: currentEmail, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + '/?auth=callback' } });
     startTimer();
   }
@@ -727,22 +726,26 @@
     pendingEmail = '';
   }
 
+  function acceptConsent() {
+    const chk1 = document.getElementById('chkPrivacy').checked;
+    const chk2 = document.getElementById('chkTerms').checked;
+    const errEl = document.getElementById('consentErr');
+    if (!chk1 || !chk2) {
+      errEl.classList.add('visible');
+      return;
+    }
+    errEl.classList.remove('visible');
+    confirmConsent();
+  }
+
   async function confirmConsent() {
     if (!pendingEmail) return;
-    const btn = document.getElementById('confirmConsentBtn');
-    btn.disabled = true; btn.textContent = '\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u0435\u043c\u2026';
     try {
-      await fetch('/api/profile/consent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: pendingEmail })
-      });
       localStorage.setItem('ao_consent_' + pendingEmail, '1');
     } catch(e) {}
     document.getElementById('consentModal').classList.remove('visible');
     doSendCode(pendingEmail);
     pendingEmail = '';
-    btn.disabled = false; btn.textContent = '\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u044e \u0438 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0430\u044e';
   }
 
   // ── Info popups ──
