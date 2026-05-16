@@ -1366,7 +1366,7 @@
   <div class="save-banner" id="saveBanner">
     <div class="save-banner-title">Сохраните результат</div>
     <div class="save-banner-sub">Войдите через email — результат сохранится в личном кабинете. Бесплатно, 30 секунд.</div>
-    <a class="save-banner-btn" href="/auth.html">Сохранить результат →</a>
+    <button class="save-banner-btn" onclick="saveAndGoAuth()">Сохранить результат →</button>
     <button class="save-banner-skip" onclick="document.getElementById('saveBanner').classList.remove('visible')">Пропустить</button>
   </div>
 
@@ -1447,6 +1447,8 @@
 
   let currentUser    = null;
   let currentProfile = null;
+  let lastAnalysisResult      = null; // последний результат анализа (для сохранения после входа)
+  let lastAnalysisInspection  = null; // тип осмотра последнего анализа
 
   // ── Analytics ──────────────────────────────────────────────
   // Отправляет событие в Яндекс Метрику и сохраняет в Supabase
@@ -1520,6 +1522,9 @@
     if (fbEmail && currentUser?.email) fbEmail.placeholder = currentUser.email;
     document.getElementById('userEmail').textContent = currentUser.email;
     updateAnalysesBadge();
+
+    // Восстанавливаем и сохраняем анализ, сделанный до входа
+    await claimPendingAnalysis();
 
     // Проверяем возврат после оплаты
     await checkPaymentReturn();
@@ -1851,6 +1856,9 @@
         confidence: json.data?.meta?.analysis_confidence,
         inspection_type: inspectionType.value,
       });
+
+      lastAnalysisResult     = json;
+      lastAnalysisInspection = inspectionType.value;
 
       renderResult(json);
       // Показываем баннер сохранения для незарегистрированных
@@ -2673,6 +2681,71 @@
     if (sel && txt) { sel.style.display = ''; txt.style.display = 'none'; }
 
     window.scrollTo({ top:0, behavior:'smooth' });
+  }
+
+  // ── Сохранение результата после входа ──
+
+  function saveAndGoAuth() {
+    if (lastAnalysisResult) {
+      try {
+        localStorage.setItem('ao_pending_analysis', JSON.stringify({
+          result:          lastAnalysisResult,
+          inspection_type: lastAnalysisInspection || 'страховой случай',
+          saved_at:        Date.now()
+        }));
+      } catch(e) { /* localStorage может быть недоступен */ }
+    }
+    window.location.href = '/auth.html';
+  }
+
+  async function claimPendingAnalysis() {
+    let raw;
+    try { raw = localStorage.getItem('ao_pending_analysis'); } catch(e) { return; }
+    if (!raw || !currentUser) return;
+
+    let pending;
+    try { pending = JSON.parse(raw); } catch(e) { localStorage.removeItem('ao_pending_analysis'); return; }
+
+    // Не берём записи старше 1 часа
+    if (!pending.saved_at || Date.now() - pending.saved_at > 3_600_000) {
+      localStorage.removeItem('ao_pending_analysis');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/analysis/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id:         currentUser.id,
+          result:          pending.result,
+          photo_name:      pending.result?.filename || null,
+          inspection_type: pending.inspection_type
+        })
+      });
+
+      if (res.ok) {
+        localStorage.removeItem('ao_pending_analysis');
+        // Обновляем локальный счётчик
+        if (currentProfile) {
+          currentProfile = { ...currentProfile, analyses_count: (currentProfile.analyses_count || 0) + 1 };
+          updateAnalysesBadge();
+        }
+        // Показываем результат
+        lastAnalysisResult     = pending.result;
+        lastAnalysisInspection = pending.inspection_type;
+        renderResult(pending.result);
+        track('pending_analysis_saved');
+      } else if (res.status === 402) {
+        // Лимит уже исчерпан — просто показываем результат без сохранения
+        localStorage.removeItem('ao_pending_analysis');
+        lastAnalysisResult = pending.result;
+        renderResult(pending.result);
+        showPaywall();
+      } else {
+        // Другая ошибка — оставляем в localStorage, попробуем позже
+      }
+    } catch(e) { /* сеть недоступна, оставляем для следующей попытки */ }
   }
 
   // ── YooKassa Payment ──

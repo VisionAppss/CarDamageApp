@@ -576,6 +576,41 @@ async def analyze_image(
         raise HTTPException(status_code=502, detail=f"Ошибка нейросети: {str(e)}")
 
 
+class AnalysisSaveRequest(BaseModel):
+    user_id: str
+    result: dict
+    photo_name: Optional[str] = None
+    inspection_type: Optional[str] = None
+
+
+@app.post("/analysis/save")
+async def save_pending_analysis(data: AnalysisSaveRequest):
+    """Сохраняет результат анализа, сделанного гостем, после его авторизации."""
+    async with app.state.pool.acquire() as conn:
+        profile = await conn.fetchrow(
+            "SELECT analyses_count, is_paid, email FROM profiles WHERE id = $1",
+            data.user_id
+        )
+        if not profile:
+            raise HTTPException(status_code=404, detail="Профиль не найден")
+
+        is_admin = ADMIN_EMAIL and profile['email'] == ADMIN_EMAIL
+        if not is_admin and profile['analyses_count'] >= 1 and not profile['is_paid']:
+            raise HTTPException(status_code=402, detail="Лимит исчерпан")
+
+        await conn.execute("""
+            INSERT INTO analyses (user_id, result, photo_name, inspection_type)
+            VALUES ($1, $2, $3, $4)
+        """, data.user_id, json.dumps(data.result),
+             data.photo_name, data.inspection_type or "страховой случай")
+
+        await conn.execute("""
+            UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1
+        """, data.user_id)
+
+    return {"ok": True}
+
+
 @app.post("/payment/create")
 async def create_payment(data: PaymentCreateRequest):
     """Создаёт платёж YooKassa и возвращает URL для оплаты."""
