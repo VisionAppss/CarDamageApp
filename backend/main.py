@@ -7,6 +7,7 @@ FastAPI бэкенд с подключением к PostgreSQL.
 import base64
 import json
 import os
+import uuid
 import configparser
 from pathlib import Path
 from datetime import datetime
@@ -19,6 +20,8 @@ from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Header, Requ
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
+import yookassa
+from yookassa import Configuration as YKConfig, Payment as YKPayment
 
 
 # === КОНФИГУРАЦИЯ ===
@@ -42,6 +45,16 @@ UPLOAD_DIR = Path(os.getenv('UPLOAD_DIR', '/app/uploads'))
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', '')
+
+# YooKassa
+YOOKASSA_SHOP_ID   = config.get('yookassa', 'shop_id',    fallback='') or os.getenv('YOOKASSA_SHOP_ID', '')
+YOOKASSA_SECRET    = config.get('yookassa', 'secret_key', fallback='') or os.getenv('YOOKASSA_SECRET_KEY', '')
+YOOKASSA_PRICE     = config.get('yookassa', 'price',      fallback='299.00')
+YOOKASSA_RETURN_URL = config.get('yookassa', 'return_url', fallback='https://car-scan.ru/')
+
+if YOOKASSA_SHOP_ID and YOOKASSA_SECRET:
+    YKConfig.account_id = YOOKASSA_SHOP_ID
+    YKConfig.secret_key  = YOOKASSA_SECRET
 
 # PostgreSQL
 DB_HOST = os.getenv('DB_HOST', 'db')
@@ -128,6 +141,9 @@ class FeedbackData(BaseModel):
     email: Optional[str] = None
     user_id: Optional[str] = None
     url: Optional[str] = None
+
+class PaymentCreateRequest(BaseModel):
+    user_id: str
 
 # === ПРОМПТЫ ===
 
@@ -467,7 +483,7 @@ async def analyze_image(
                 x_user_id
             )
             is_admin = ADMIN_EMAIL and profile and profile['email'] == ADMIN_EMAIL
-            if not is_admin and profile and profile['analyses_count'] >= 3 and not profile['is_paid']:
+            if not is_admin and profile and profile['analyses_count'] >= 1 and not profile['is_paid']:
                 raise HTTPException(
                     status_code=402,
                     detail="Бесплатный анализ уже использован"
@@ -558,6 +574,85 @@ async def analyze_image(
         if file_path.exists():
             file_path.unlink()
         raise HTTPException(status_code=502, detail=f"Ошибка нейросети: {str(e)}")
+
+
+@app.post("/payment/create")
+async def create_payment(data: PaymentCreateRequest):
+    """Создаёт платёж YooKassa и возвращает URL для оплаты."""
+    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET:
+        raise HTTPException(status_code=503, detail="Оплата временно недоступна")
+
+    async with app.state.pool.acquire() as conn:
+        profile = await conn.fetchrow(
+            "SELECT is_paid FROM profiles WHERE id = $1", data.user_id
+        )
+    if not profile:
+        raise HTTPException(status_code=404, detail="Профиль не найден")
+    if profile['is_paid']:
+        raise HTTPException(status_code=400, detail="Подписка уже активна")
+
+    idempotency_key = str(uuid.uuid4())
+    payment = YKPayment.create({
+        "amount": {"value": YOOKASSA_PRICE, "currency": "RUB"},
+        "confirmation": {
+            "type": "redirect",
+            "return_url": YOOKASSA_RETURN_URL.rstrip('/') + "/?payment=success"
+        },
+        "capture": True,
+        "description": "Безлимитный доступ к анализу повреждений автомобиля",
+        "metadata": {"user_id": data.user_id}
+    }, idempotency_key)
+
+    async with app.state.pool.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO payments (id, user_id, status, amount)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (id) DO NOTHING
+        """, payment.id, data.user_id, payment.status, float(YOOKASSA_PRICE))
+
+    return {
+        "payment_id": payment.id,
+        "confirmation_url": payment.confirmation.confirmation_url
+    }
+
+
+@app.post("/payment/webhook")
+async def payment_webhook(request: Request):
+    """Вебхук от YooKassa — активирует подписку при успешной оплате."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    event = body.get("event")
+    obj   = body.get("object", {})
+
+    if event == "payment.succeeded":
+        payment_id = obj.get("id")
+        user_id    = obj.get("metadata", {}).get("user_id")
+        if user_id:
+            async with app.state.pool.acquire() as conn:
+                await conn.execute(
+                    "UPDATE profiles SET is_paid = TRUE WHERE id = $1", user_id
+                )
+                if payment_id:
+                    await conn.execute(
+                        "UPDATE payments SET status = 'succeeded' WHERE id = $1", payment_id
+                    )
+
+    return {"ok": True}
+
+
+@app.get("/payment/status/{payment_id}")
+async def payment_status(payment_id: str):
+    """Проверяет статус конкретного платежа через API YooKassa."""
+    if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET:
+        raise HTTPException(status_code=503, detail="Оплата временно недоступна")
+    try:
+        payment = YKPayment.find_one(payment_id)
+        return {"status": payment.status, "paid": payment.paid}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 if __name__ == "__main__":

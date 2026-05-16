@@ -1376,10 +1376,12 @@
     <div class="paywall-title">Бесплатный анализ использован</div>
     <div class="paywall-sub">
       Вы использовали 1 бесплатный анализ.<br>
-      Чтобы продолжить — напишите нам, мы откроем доступ вручную.
+      Оформите подписку для неограниченных анализов.
     </div>
-    <a class="btn-pay" href="/cdn-cgi/l/email-protection#bedddfcccddddfd090dfd7fec7dfd0dadbc690ddd1d381cdcbdcd4dbddca836e296e0e6e016f3e6e006f3f9e6e0a6e006f3f6f3c6f3d6e016e0e9e6e2e6e0c6f3c6e006e1f6e046e0e6e0398dcd1dac7836e296e0a6f3e6e0e6e0c6f3f6f3c6e0c6f3d6e076f3c6e0b929e6e016f3e6e006f366f3d9e6e006f3c6e046f3e6f356f3c6f329e6e0a6e006f3f6f3c6f3d6e019e6e049e6f3f6e0b6f3e6e0c6e066f3f6f3d9e6e0a6e056f319e6e026e006e0b6e0d6e009e6e0e6e046e046e0e6f3d6e036f3c6e0e90">Написать нам</a>
-    <div class="paywall-note"><a href="/cdn-cgi/l/email-protection#3e5d5f4c4d5d5f50105f577e475f505a5b46105d5153"><span class="__cf_email__" data-cfemail="4a292b3839292b24642b230a332b242e2f3264292527">[email&#160;protected]</span></a> · ответим в течение часа</div>
+    <div class="paywall-price">299 <span>₽</span></div>
+    <div class="paywall-per">безлимитный доступ навсегда</div>
+    <button class="btn-pay" id="btnPay" onclick="startPayment()">Оплатить через ЮKassa</button>
+    <div class="paywall-note">Безопасная оплата &middot; <a href="mailto:justdars@yandex.ru">justdars@yandex.ru</a></div>
   </div>
 
   <!-- Services (отключено временно) -->
@@ -1519,8 +1521,11 @@
     document.getElementById('userEmail').textContent = currentUser.email;
     updateAnalysesBadge();
 
+    // Проверяем возврат после оплаты
+    await checkPaymentReturn();
+
     // Show paywall if free limit reached and not paid
-    if (currentProfile && currentProfile.analyses_count >= 3 && !currentProfile.is_paid) {
+    if (currentProfile && currentProfile.analyses_count >= 1 && !currentProfile.is_paid) {
       showPaywall();
       track('paywall_shown', { analyses_count: currentProfile.analyses_count });
     }
@@ -2668,6 +2673,64 @@
     if (sel && txt) { sel.style.display = ''; txt.style.display = 'none'; }
 
     window.scrollTo({ top:0, behavior:'smooth' });
+  }
+
+  // ── YooKassa Payment ──
+
+  async function startPayment() {
+    if (!currentUser) { window.location.href = '/auth.html'; return; }
+    const btn = document.getElementById('btnPay');
+    btn.disabled = true;
+    btn.textContent = 'Создаём платёж…';
+    try {
+      const res = await fetch('/api/payment/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: currentUser.id })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Ошибка создания платежа');
+      }
+      const { confirmation_url } = await res.json();
+      track('payment_started');
+      window.location.href = confirmation_url;
+    } catch(e) {
+      btn.disabled = false;
+      btn.textContent = 'Оплатить через ЮKassa';
+      showError('Не удалось создать платёж: ' + e.message);
+    }
+  }
+
+  async function checkPaymentReturn() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') !== 'success') return;
+    history.replaceState({}, '', window.location.pathname);
+    if (!currentUser) return;
+    try {
+      const res = await fetch('/api/profile/' + currentUser.id);
+      if (!res.ok) return;
+      currentProfile = await res.json();
+      if (currentProfile.is_paid) {
+        document.getElementById('paywall').classList.remove('visible');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        analyzeBtn.disabled = false;
+        analyzeBtn.textContent = 'Анализировать';
+        updateAnalysesBadge();
+        track('payment_success');
+        showPaymentSuccessBanner();
+      }
+    } catch(e) { /* не критично */ }
+  }
+
+  function showPaymentSuccessBanner() {
+    const banner = document.createElement('div');
+    banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);' +
+      'background:#111;color:#fff;padding:12px 20px;font-size:13px;z-index:9999;' +
+      'border-radius:2px;box-shadow:0 4px 12px rgba(0,0,0,.3);white-space:nowrap;';
+    banner.textContent = 'Оплата прошла успешно — анализы доступны!';
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 5000);
   }
 </script>
 

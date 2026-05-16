@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   email          TEXT UNIQUE NOT NULL,
   created_at     TIMESTAMPTZ DEFAULT NOW(),
   analyses_count INTEGER DEFAULT 0,
-  is_paid        BOOLEAN DEFAULT FALSE
+  is_paid        BOOLEAN DEFAULT FALSE,
+  consent_given  BOOLEAN DEFAULT FALSE
 );
 
 -- История анализов
@@ -17,7 +18,9 @@ CREATE TABLE IF NOT EXISTS analyses (
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   result          JSONB,
   photo_name      TEXT,
-  inspection_type TEXT
+  inspection_type TEXT,
+  photo_data      TEXT,
+  photo_mime      TEXT
 );
 
 CREATE INDEX IF NOT EXISTS analyses_user_id_idx ON analyses(user_id);
@@ -37,3 +40,27 @@ CREATE TABLE IF NOT EXISTS events (
 CREATE INDEX IF NOT EXISTS events_event_idx      ON events(event);
 CREATE INDEX IF NOT EXISTS events_created_at_idx ON events(created_at DESC);
 CREATE INDEX IF NOT EXISTS events_user_id_idx    ON events(user_id);
+
+-- Платежи YooKassa
+CREATE TABLE IF NOT EXISTS payments (
+  id         TEXT PRIMARY KEY,           -- YooKassa payment ID
+  user_id    TEXT REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  status     TEXT DEFAULT 'pending',
+  amount     NUMERIC(10,2)
+);
+
+CREATE INDEX IF NOT EXISTS payments_user_id_idx ON payments(user_id);
+
+-- Миграции для существующих БД (игнорируют ошибки если колонка уже есть)
+DO $$ BEGIN
+  ALTER TABLE profiles ADD COLUMN IF NOT EXISTS consent_given BOOLEAN DEFAULT FALSE;
+EXCEPTION WHEN others THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE analyses ADD COLUMN IF NOT EXISTS photo_data TEXT;
+EXCEPTION WHEN others THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE analyses ADD COLUMN IF NOT EXISTS photo_mime TEXT;
+EXCEPTION WHEN others THEN NULL; END $$;
