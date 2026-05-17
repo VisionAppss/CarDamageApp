@@ -788,7 +788,99 @@
 
     .paywall-note a { color: var(--black); text-decoration: underline; }
 
-    /* ── Cabinet modal ── */
+    /* ── Damage Diagram ── */
+    .dmg-diagram {
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.07);
+      margin-bottom: 1px;
+      overflow: hidden;
+    }
+    .dmg-diagram-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10px;
+      color: rgba(255,255,255,0.42);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+    .dmg-analyzed-badge {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.32);
+      color: #e05555;
+      padding: 2px 8px;
+      font-size: 9px;
+      letter-spacing: 1.2px;
+    }
+    .dmg-views-bar {
+      display: flex;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .dmg-view-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.35);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 6px 4px;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+    }
+    .dmg-view-btn:last-child { border-right: none; }
+    .dmg-view-btn.active {
+      color: #fff;
+      background: rgba(255,255,255,0.05);
+    }
+    .dmg-view-btn:hover:not(.active) { color: rgba(255,255,255,0.6); }
+    .dmg-diagram-stage {
+      position: relative;
+      width: 100%;
+      padding-bottom: 33.4%;
+      overflow: hidden;
+    }
+    .dmg-diagram-stage svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .dmg-markers {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .dmg-marker {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+    .dmg-marker-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dmg-marker-label {
+      background: rgba(0,0,0,0.88);
+      border: 1px solid rgba(255,255,255,0.11);
+      color: #e5e5e5;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.7px;
+      padding: 3px 7px;
+      text-transform: uppercase;
+      font-family: 'Courier New', Courier, monospace;
+    }
     .cabinet-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.45); z-index: 100;
@@ -1447,8 +1539,9 @@
 
   let currentUser    = null;
   let currentProfile = null;
-  let lastAnalysisResult      = null; // последний результат анализа (для сохранения после входа)
-  let lastAnalysisInspection  = null; // тип осмотра последнего анализа
+  let lastAnalysisResult      = null;
+  let lastAnalysisInspection  = null;
+  let _analyzeStart  = 0;
 
   // ── Analytics ──────────────────────────────────────────────
   // Отправляет событие в Яндекс Метрику и сохраняет в Supabase
@@ -1807,6 +1900,7 @@
   async function doAnalyze() {
     if (!currentFiles.length) { showError('Выберите фото для анализа'); return; }
 
+    _analyzeStart = Date.now();
     loadingBox.classList.add('visible');
     analyzeBtn.disabled = true;
 
@@ -1900,7 +1994,9 @@
     const confidenceColor = vehicle.confidence >= 80 ? '#10b981' : vehicle.confidence >= 50 ? '#f59e0b' : '#ef4444';
     const confidenceLabel = vehicle.confidence >= 80 ? 'Высокая' : vehicle.confidence >= 50 ? 'Средняя' : 'Низкая';
 
-    let html = '';
+    const elapsed = _analyzeStart ? (Date.now() - _analyzeStart) / 1000 : null;
+    _analyzeStart = 0;
+    let html = buildDiagram(json, elapsed);
 
     // Vehicle
     const vName = [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ') || 'Автомобиль не определён';
@@ -2054,6 +2150,257 @@
   function hideError()  { errorBox.classList.remove('visible'); }
   function hideResult() { resultWrap.classList.remove('visible'); resultWrap.innerHTML = ''; }
 
+  // ── Damage Diagram ──────────────────────────────────────────────────────
+
+  function buildDiagram(json, elapsedSecs) {
+    const raw     = (json && json.data) ? json.data : json;
+    const damages = (raw && raw.damages) ? raw.damages : [];
+
+    const TYPE_COLOR = {
+      scratch: '#f97316', dent: '#aaaaaa', crack: '#ef4444',
+      deformation: '#ef4444', corrosion: '#dc2626', other: '#f59e0b'
+    };
+
+    // Is this location on the right side?
+    function isRight(loc) {
+      return /\bправ|\bправая|\bправый|\bR\b/i.test(loc || '');
+    }
+
+    // Zone rect [x,y,w,h] in SVG 900×300 coords, car facing LEFT
+    function locZone(loc) {
+      const s = (loc || '').toLowerCase();
+      if (s.includes('передн') && s.includes('бамп')) return [72, 168, 58, 68];
+      if (s.includes('капот'))                         return [132, 92, 166, 80];
+      if (s.includes('лобов') || (s.includes('перед') && s.includes('стекл')))
+                                                       return [305, 64, 70, 78];
+      if (s.includes('перед') && s.includes('крыл'))   return [132, 148, 88, 70];
+      if (s.includes('перед') && s.includes('дверь'))  return [396, 88, 118, 118];
+      if ((s.includes('средн') || s.includes('цент')) && s.includes('дверь'))
+                                                       return [516, 88, 106, 118];
+      if (s.includes('задн') && s.includes('дверь'))   return [516, 88, 106, 118];
+      if (s.includes('крыш') || s.includes('roof'))    return [305, 62, 318, 38];
+      if (s.includes('задн') && s.includes('крыл'))    return [622, 138, 92, 72];
+      if (s.includes('задн') && s.includes('стекл'))   return [624, 64, 76, 80];
+      if (s.includes('багаж') || s.includes('крышк'))  return [622, 138, 92, 68];
+      if (s.includes('задн') && s.includes('бамп'))    return [740, 162, 76, 70];
+      if (s.includes('порог') || s.includes('рокер'))  return [230, 212, 428, 28];
+      if (s.includes('перед') && (s.includes('арк') || s.includes('колес')))
+                                                       return [154, 214, 112, 56];
+      if (s.includes('задн') && (s.includes('арк') || s.includes('колес')))
+                                                       return [608, 214, 112, 56];
+      if (s.includes('зеркал'))                        return [282, 110, 50, 30];
+      return [362, 118, 176, 92];
+    }
+
+    // Marker position (% of container). aboveY=true → label above dot.
+    function locMarker(loc) {
+      const s = (loc || '').toLowerCase();
+      if (s.includes('передн') && s.includes('бамп')) return { x: 9,  y: 57, up: true  };
+      if (s.includes('капот'))                         return { x: 24, y: 37, up: true  };
+      if (s.includes('лобов') || (s.includes('перед') && s.includes('стекл')))
+                                                       return { x: 38, y: 23, up: false };
+      if (s.includes('перед') && s.includes('крыл'))   return { x: 18, y: 56, up: true  };
+      if (s.includes('перед') && s.includes('дверь'))  return { x: 42, y: 33, up: false };
+      if ((s.includes('средн') || s.includes('цент')) && s.includes('дверь'))
+                                                       return { x: 58, y: 28, up: false };
+      if (s.includes('задн') && s.includes('дверь'))   return { x: 63, y: 33, up: false };
+      if (s.includes('крыш'))                          return { x: 50, y: 17, up: false };
+      if (s.includes('задн') && s.includes('крыл'))    return { x: 79, y: 56, up: true  };
+      if (s.includes('задн') && s.includes('стекл'))   return { x: 75, y: 23, up: false };
+      if (s.includes('багаж') || s.includes('крышк'))  return { x: 76, y: 50, up: true  };
+      if (s.includes('задн') && s.includes('бамп'))    return { x: 90, y: 60, up: true  };
+      if (s.includes('порог'))                         return { x: 50, y: 80, up: false };
+      if (s.includes('перед') && s.includes('арк'))    return { x: 22, y: 82, up: false };
+      if (s.includes('задн') && s.includes('арк'))     return { x: 75, y: 82, up: false };
+      if (s.includes('зеркал'))                        return { x: 36, y: 40, up: true  };
+      return { x: 50, y: 50, up: true };
+    }
+
+    // Flip x% for right-side view
+    function flipX(x) { return 100 - x; }
+    // Flip zone x for right-side SVG (mirror: newX = 900 - x - w)
+    function flipZoneX(z) { return [900 - z[0] - z[2], z[1], z[2], z[3]]; }
+
+    // Build SVG highlights + HTML markers for given side ('l' or 'r')
+    function buildSideContent(side) {
+      let svgH = '', markers = '';
+      damages.forEach(d => {
+        const dSide = isRight(d.location) ? 'r' : 'l';
+        if (dSide !== side) return;
+        const color = TYPE_COLOR[d.type] || '#f59e0b';
+        let z = locZone(d.location);
+        if (side === 'r') z = flipZoneX(z);
+        svgH += `<rect x="${z[0]}" y="${z[1]}" width="${z[2]}" height="${z[3]}" rx="3"
+          fill="${color}" fill-opacity="0.07" stroke="${color}" stroke-width="1.5" stroke-opacity="0.88"/>`;
+        let p = locMarker(d.location);
+        if (side === 'r') p = { ...p, x: flipX(p.x) };
+        const t = `translate(-50%, ${p.up ? 'calc(-100% - 6px)' : '8px'})`;
+        const typeRu = (damageLabel(d.type) || d.type).toUpperCase();
+        const locRu  = (d.location || '').toUpperCase();
+        markers += `<div class="dmg-marker" style="left:${p.x}%;top:${p.y}%;transform:${t}">
+          <span class="dmg-marker-dot" style="background:${color}"></span>
+          <span class="dmg-marker-label">${typeRu}&nbsp;·&nbsp;${esc(locRu)}</span>
+        </div>`;
+      });
+      return { svgH, markers };
+    }
+
+    function carSVG(extraPaths, mirror) {
+      const flip = mirror ? 'transform="scale(-1,1) translate(-900,0)"' : '';
+      return `<svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg">
+        <rect width="900" height="300" fill="#111"/>
+        <ellipse cx="450" cy="272" rx="388" ry="10" fill="rgba(0,0,0,0.55)"/>
+        <g ${flip}>
+          <!-- body -->
+          <path d="M 78,242 L 78,200 Q 78,180 96,172 L 132,162 Q 178,152 210,148
+            L 275,130 Q 295,116 312,102 L 364,76 Q 380,68 400,68
+            L 548,68 Q 566,68 585,78 L 638,106 Q 650,120 656,132
+            L 720,152 Q 752,160 772,172 L 815,185 Q 824,196 824,214 L 824,242 Z"
+            fill="#232323"/>
+          <!-- shine -->
+          <path d="M 200,148 Q 340,136 460,134 Q 580,132 650,140"
+            fill="none" stroke="rgba(255,255,255,0.035)" stroke-width="10"/>
+          <!-- windshield -->
+          <path d="M 315,102 L 366,76 L 400,74 L 400,130 Z" fill="#14141e"/>
+          <!-- front door win -->
+          <rect x="402" y="72" width="112" height="58" fill="#14141e"/>
+          <!-- rear door win -->
+          <path d="M 516,72 L 548,72 L 580,82 L 580,130 L 516,130 Z" fill="#14141e"/>
+          <!-- rear window -->
+          <path d="M 585,80 L 637,107 L 637,130 L 582,130 Z" fill="#14141e"/>
+          <!-- window outlines -->
+          <path d="M 315,102 L 366,76 L 400,74 L 400,130 Z" fill="none" stroke="#2c2c2c" stroke-width="1.2"/>
+          <rect x="402" y="72" width="112" height="58" fill="none" stroke="#2c2c2c" stroke-width="1.2"/>
+          <path d="M 516,72 L 548,72 L 580,82 L 580,130 L 516,130 Z" fill="none" stroke="#2c2c2c" stroke-width="1.2"/>
+          <path d="M 585,80 L 637,107 L 637,130 L 582,130 Z" fill="none" stroke="#2c2c2c" stroke-width="1.2"/>
+          <!-- door dividers -->
+          <line x1="402" y1="74" x2="402" y2="242" stroke="#1b1b1b" stroke-width="2"/>
+          <line x1="516" y1="72" x2="516" y2="242" stroke="#1b1b1b" stroke-width="2"/>
+          <line x1="638" y1="107" x2="638" y2="242" stroke="#1b1b1b" stroke-width="2"/>
+          <!-- crease line -->
+          <path d="M 96,200 Q 300,194 450,192 L 730,194 Q 790,197 822,202"
+            fill="none" stroke="#2a2a2a" stroke-width="1.2"/>
+          <!-- sill -->
+          <line x1="130" y1="222" x2="812" y2="220" stroke="#1c1c1c" stroke-width="1.5"/>
+          <!-- mirror -->
+          <path d="M 300,124 L 283,122 L 280,137 L 306,137 Z" fill="#282828" stroke="#2e2e2e" stroke-width="1"/>
+          <!-- door handles -->
+          <rect x="448" y="178" width="24" height="5" rx="2.5" fill="#303030"/>
+          <rect x="554" y="178" width="24" height="5" rx="2.5" fill="#303030"/>
+          <rect x="664" y="178" width="24" height="5" rx="2.5" fill="#303030"/>
+          <!-- headlight -->
+          <path d="M 78,177 Q 84,168 98,165 L 132,160 L 132,188 L 84,188 Z"
+            fill="#d8d8c8" fill-opacity="0.62"/>
+          <path d="M 78,177 Q 84,168 98,165 L 132,160 L 132,188 L 84,188 Z"
+            fill="none" stroke="#999" stroke-width="1"/>
+          <!-- taillight -->
+          <path d="M 796,167 L 824,180 L 824,215 L 796,215 Z"
+            fill="#cc2222" fill-opacity="0.42" stroke="#992222" stroke-width="1"/>
+          <!-- wheel arch cutouts -->
+          <circle cx="210" cy="242" r="56" fill="#111"/>
+          <circle cx="664" cy="242" r="56" fill="#111"/>
+          <!-- arch lips -->
+          <path d="M 156,237 Q 210,183 264,237" fill="none" stroke="#2a2a2a" stroke-width="2"/>
+          <path d="M 610,237 Q 664,183 718,237" fill="none" stroke="#2a2a2a" stroke-width="2"/>
+          <!-- tires -->
+          <circle cx="210" cy="242" r="52" fill="#181818"/>
+          <circle cx="210" cy="242" r="36" fill="#111"/>
+          <circle cx="664" cy="242" r="52" fill="#181818"/>
+          <circle cx="664" cy="242" r="36" fill="#111"/>
+          <!-- spokes front -->
+          <g stroke="#383838" stroke-width="1.5" transform="translate(210,242)">
+            <line x1="0" y1="-34" x2="0" y2="34"/>
+            <line x1="-34" y1="0" x2="34" y2="0"/>
+            <line x1="-24" y1="-24" x2="24" y2="24"/>
+            <line x1="24" y1="-24" x2="-24" y2="24"/>
+          </g>
+          <circle cx="210" cy="242" r="7" fill="#242424"/>
+          <!-- spokes rear -->
+          <g stroke="#383838" stroke-width="1.5" transform="translate(664,242)">
+            <line x1="0" y1="-34" x2="0" y2="34"/>
+            <line x1="-34" y1="0" x2="34" y2="0"/>
+            <line x1="-24" y1="-24" x2="24" y2="24"/>
+            <line x1="24" y1="-24" x2="-24" y2="24"/>
+          </g>
+          <circle cx="664" cy="242" r="7" fill="#242424"/>
+          <!-- body outline -->
+          <path d="M 78,242 L 78,200 Q 78,180 96,172 L 132,162 Q 178,152 210,148
+            L 275,130 Q 295,116 312,102 L 364,76 Q 380,68 400,68
+            L 548,68 Q 566,68 585,78 L 638,106 Q 650,120 656,132
+            L 720,152 Q 752,160 772,172 L 815,185 Q 824,196 824,214 L 824,242 Z"
+            fill="none" stroke="#353535" stroke-width="1.5"/>
+          <!-- damage highlights -->
+          ${extraPaths}
+        </g>
+        <!-- ground line -->
+        <line x1="40" y1="295" x2="860" y2="295" stroke="rgba(239,68,68,0.22)" stroke-width="1"/>
+      </svg>`;
+    }
+
+    // Determine which views are needed
+    const hasLeft  = damages.some(d => !isRight(d.location));
+    const hasRight = damages.some(d =>  isRight(d.location));
+    const multiView = hasLeft && hasRight;
+
+    const fname = json?.filename || '';
+    const secs  = elapsedSecs != null ? Number(elapsedSecs).toFixed(1) + 'S' : '—';
+
+    const headerHtml = `<div class="dmg-diagram-header">
+      <div>${fname ? 'IMG&nbsp;·&nbsp;' + esc(fname) : 'СХЕМА&nbsp;·&nbsp;ПОВРЕЖДЕНИЯ'}</div>
+      <div class="dmg-analyzed-badge">ANALYZED&nbsp;·&nbsp;${secs}</div>
+    </div>`;
+
+    if (!multiView) {
+      // Single view
+      const side = hasRight ? 'r' : 'l';
+      const { svgH, markers } = buildSideContent(side);
+      const sideLabel = side === 'r' ? 'ПРАВЫЙ БОК' : 'ЛЕВЫЙ БОК';
+      const viewsBar = `<div class="dmg-views-bar">
+        <button class="dmg-view-btn active">${sideLabel}</button>
+      </div>`;
+      return `<div class="dmg-diagram">
+        ${headerHtml}${viewsBar}
+        <div class="dmg-diagram-stage">
+          ${carSVG(svgH, side === 'r')}
+          <div class="dmg-markers">${markers}</div>
+        </div>
+      </div>`;
+    }
+
+    // Multi-view slider: left + right tabs
+    const lContent = buildSideContent('l');
+    const rContent = buildSideContent('r');
+    const lSvg  = carSVG(lContent.svgH, false);
+    const rSvg  = carSVG(rContent.svgH, true);
+    const uid   = 'diag_' + Math.random().toString(36).slice(2, 7);
+
+    return `<div class="dmg-diagram" id="${uid}">
+      ${headerHtml}
+      <div class="dmg-views-bar">
+        <button class="dmg-view-btn active" onclick="switchDiagView('${uid}','l')">ЛЕВЫЙ БОК</button>
+        <button class="dmg-view-btn"        onclick="switchDiagView('${uid}','r')">ПРАВЫЙ БОК</button>
+      </div>
+      <div class="dmg-diagram-stage" data-view="l">
+        ${lSvg}
+        <div class="dmg-markers">${lContent.markers}</div>
+      </div>
+      <div class="dmg-diagram-stage" data-view="r" style="display:none">
+        ${rSvg}
+        <div class="dmg-markers">${rContent.markers}</div>
+      </div>
+    </div>`;
+  }
+
+  function switchDiagView(uid, view) {
+    const wrap = document.getElementById(uid);
+    if (!wrap) return;
+    wrap.querySelectorAll('.dmg-diagram-stage').forEach(s => {
+      s.style.display = s.dataset.view === view ? '' : 'none';
+    });
+    wrap.querySelectorAll('.dmg-view-btn').forEach((b, i) => {
+      b.classList.toggle('active', (i === 0 && view === 'l') || (i === 1 && view === 'r'));
+    });
+  }
 
   // ── Services / Geolocation ──────────────────────────────────────────────
 
