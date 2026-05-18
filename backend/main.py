@@ -235,7 +235,6 @@ http_client = httpx.Client(timeout=60.0)
 ai_client = openai.OpenAI(
     api_key=YANDEX_API_KEY,
     base_url="https://llm.api.cloud.yandex.net/v1",
-    default_headers={"Authorization": f"Api-Key {YANDEX_API_KEY}"},
     http_client=http_client,
 )
 
