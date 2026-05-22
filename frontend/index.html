@@ -1372,11 +1372,14 @@
     </div>
   </header>
 
-  <!-- Гостевая панель -->
+  <!-- Гостевая панель — временно скрыта (регистрация отключена) -->
+  <!--
   <div class="guest-bar" id="guestBar">
     <span class="guest-bar-text">Уже есть аккаунт?</span>
     <a class="btn-login" href="/auth.html">Войти</a>
   </div>
+  -->
+  <div id="guestBar" style="display:none"></div>
 
   <!-- User bar -->
   <div class="user-bar" id="userBar">
@@ -1455,20 +1458,23 @@
   <!-- Result -->
   <div class="result-wrap" id="resultWrap"></div>
 
-  <!-- Баннер для гостей -->
+  <!-- Баннер для гостей — временно скрыт (регистрация отключена) -->
+  <!--
   <div class="save-banner" id="saveBanner">
     <div class="save-banner-title">Сохраните результат</div>
     <div class="save-banner-sub">Войдите через email — результат сохранится в личном кабинете. Бесплатно, 30 секунд.</div>
     <button class="save-banner-btn" onclick="saveAndGoAuth()">Сохранить результат →</button>
     <button class="save-banner-skip" onclick="document.getElementById('saveBanner').classList.remove('visible')">Пропустить</button>
   </div>
+  -->
+  <div id="saveBanner" style="display:none"></div>
 
 
   <!-- Paywall -->
   <div class="paywall" id="paywall">
-    <div class="paywall-title">Бесплатный анализ использован</div>
-    <div class="paywall-sub">
-      Подписка «АвтоСкан Безлимит» — неограниченные анализы повреждений автомобиля с помощью ИИ. Результат за 30 секунд: список повреждений, стоимость ремонта, схема повреждений.
+    <div class="paywall-title" id="paywallTitle">Скачайте PDF-отчёт</div>
+    <div class="paywall-sub" id="paywallSub">
+      Единовременная оплата открывает скачивание PDF-отчётов и неограниченные анализы повреждений. Результат за 30 секунд: список повреждений, стоимость ремонта, схема.
     </div>
     <div class="paywall-price">299 <span>₽</span></div>
     <div class="paywall-per">единовременный платёж · доступ навсегда</div>
@@ -3009,6 +3015,16 @@
   });
 
   async function downloadPDF() {
+    // PDF требует оплаты
+    if (!currentProfile?.is_paid) {
+      const paywallEl = document.getElementById('paywall');
+      if (paywallEl) {
+        paywallEl.classList.add('visible');
+        paywallEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
     const btn = document.querySelector('.btn-primary[onclick="downloadPDF()"]');
     const headerBtn = document.getElementById('printBtn');
     const originalText = btn ? btn.textContent : '';
@@ -3204,7 +3220,20 @@
   // ── YooKassa Payment ──
 
   async function startPayment() {
-    if (!currentUser) { window.location.href = '/auth.html'; return; }
+    if (!currentUser) {
+      // Сохраняем анализ — восстановится после логина
+      if (lastAnalysisResult) {
+        try {
+          localStorage.setItem('ao_pending_analysis', JSON.stringify({
+            result: lastAnalysisResult,
+            inspection_type: lastAnalysisInspection || 'страховой случай',
+            saved_at: Date.now()
+          }));
+        } catch(e) {}
+      }
+      window.location.href = '/auth.html';
+      return;
+    }
     const btn = document.getElementById('btnPay');
     btn.disabled = true;
     btn.textContent = 'Создаём платёж…';
