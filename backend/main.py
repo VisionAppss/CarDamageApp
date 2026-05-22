@@ -520,7 +520,7 @@ async def analyze_image(
         response = ai_client.chat.completions.create(
             model=f"gpt://{YANDEX_FOLDER}/{YANDEX_MODEL}",
             temperature=0.1,
-            max_tokens=4000,
+            max_tokens=10000,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": [
