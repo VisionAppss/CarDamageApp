@@ -36,7 +36,7 @@ if not config.sections():
 
 YANDEX_API_KEY = config.get('yandex', 'api_key')
 YANDEX_FOLDER  = config.get('yandex', 'folder_id')
-YANDEX_MODEL   = config.get('yandex', 'model', fallback='yandexgpt-32k')
+YANDEX_MODEL   = config.get('yandex', 'model', fallback='qwen3.6-35b-a3b/latest')
 
 # Supabase JWT secret для верификации токенов
 SUPABASE_JWT_SECRET = config.get('supabase', 'jwt_secret', fallback='')
