@@ -486,15 +486,9 @@ async def analyze_image(
     if x_user_id:
         async with app.state.pool.acquire() as conn:
             profile = await conn.fetchrow(
-                "SELECT analyses_count, analysis_credits, email FROM profiles WHERE id = $1",
+                "SELECT email FROM profiles WHERE id = $1",
                 x_user_id
             )
-            is_admin = ADMIN_EMAIL and profile and profile['email'] == ADMIN_EMAIL
-            if not is_admin and profile and profile['analysis_credits'] < 1:
-                raise HTTPException(
-                    status_code=402,
-                    detail="Необходимо оплатить анализ"
-                )
 
     # Валидация файла
     allowed_types = ['image/jpeg', 'image/png', 'image/webp']
@@ -577,10 +571,7 @@ async def analyze_image(
                      base64_image, file.content_type)
 
                 await conn.execute("""
-                    UPDATE profiles
-                    SET analyses_count     = analyses_count + 1,
-                        analysis_credits   = GREATEST(analysis_credits - 1, 0)
-                    WHERE id = $1
+                    UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1
                 """, x_user_id)
 
         return JSONResponse(result)
@@ -605,15 +596,11 @@ async def save_pending_analysis(data: AnalysisSaveRequest):
     """Сохраняет результат анализа, сделанного гостем, после его авторизации."""
     async with app.state.pool.acquire() as conn:
         profile = await conn.fetchrow(
-            "SELECT analyses_count, analysis_credits, email FROM profiles WHERE id = $1",
+            "SELECT email FROM profiles WHERE id = $1",
             data.user_id
         )
         if not profile:
             raise HTTPException(status_code=404, detail="Профиль не найден")
-
-        is_admin = ADMIN_EMAIL and profile['email'] == ADMIN_EMAIL
-        if not is_admin and profile['analysis_credits'] < 1:
-            raise HTTPException(status_code=402, detail="Необходимо оплатить анализ")
 
         await conn.execute("""
             INSERT INTO analyses (user_id, result, photo_name, inspection_type)
@@ -622,10 +609,7 @@ async def save_pending_analysis(data: AnalysisSaveRequest):
              data.photo_name, data.inspection_type or "страховой случай")
 
         await conn.execute("""
-            UPDATE profiles
-            SET analyses_count   = analyses_count + 1,
-                analysis_credits = GREATEST(analysis_credits - 1, 0)
-            WHERE id = $1
+            UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1
         """, data.user_id)
 
     return {"ok": True}
@@ -691,14 +675,9 @@ async def payment_webhook(request: Request):
         ptype      = meta.get("type", "analysis")
         if user_id:
             async with app.state.pool.acquire() as conn:
-                if ptype == "pdf":
-                    await conn.execute(
-                        "UPDATE profiles SET pdf_credits = pdf_credits + 1 WHERE id = $1", user_id
-                    )
-                else:
-                    await conn.execute(
-                        "UPDATE profiles SET analysis_credits = analysis_credits + 1 WHERE id = $1", user_id
-                    )
+                await conn.execute(
+                    "UPDATE profiles SET pdf_credits = pdf_credits + 1 WHERE id = $1", user_id
+                )
                 if payment_id:
                     await conn.execute(
                         "UPDATE payments SET status = 'succeeded' WHERE id = $1", payment_id

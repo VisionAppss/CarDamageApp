@@ -1647,13 +1647,9 @@
   function updateAnalysesBadge() {
     if (!currentProfile || !currentUser) return;
     const el = document.getElementById('userAnalyses');
-    const ac = currentProfile.analysis_credits || 0;
     const pc = currentProfile.pdf_credits || 0;
-    const parts = [];
-    if (ac > 0) parts.push(`Анализов: ${ac}`);
-    if (pc > 0) parts.push(`PDF: ${pc}`);
-    el.textContent = parts.length ? parts.join(' · ') : 'Нет кредитов';
-    el.className = 'user-analyses' + (ac === 0 && pc === 0 ? ' used' : '');
+    el.textContent = pc > 0 ? `PDF-отчётов: ${pc}` : 'PDF не оплачен';
+    el.className = 'user-analyses' + (pc === 0 ? ' used' : '');
   }
 
   function showPaywall(type = 'analysis') {
@@ -1691,13 +1687,10 @@
     document.getElementById('cabinetEmail').textContent = currentUser?.email || '';
 
     // Stats
-    const ac    = currentProfile?.analysis_credits || 0;
     const pc    = currentProfile?.pdf_credits || 0;
     const count = currentProfile?.analyses_count || 0;
-    const hasCredits = ac > 0 || pc > 0;
-    const statusText = [ac > 0 ? `${ac} анализ` : '', pc > 0 ? `${pc} PDF` : ''].filter(Boolean).join(', ') || 'Нет кредитов';
-    document.getElementById('cabStatus').textContent  = statusText;
-    document.getElementById('cabStatus').className    = 'cabinet-stat-value ' + (hasCredits ? 'paid' : 'free');
+    document.getElementById('cabStatus').textContent  = pc > 0 ? `${pc} PDF-отчёт` : 'Нет PDF';
+    document.getElementById('cabStatus').className    = 'cabinet-stat-value ' + (pc > 0 ? 'paid' : 'free');
     document.getElementById('cabCount').textContent   = count;
     document.getElementById('cabDate').textContent    = currentUser?.created_at
       ? new Date(currentUser.created_at).toLocaleDateString('ru-RU')
@@ -1928,12 +1921,6 @@
   async function doAnalyze() {
     if (!currentFiles.length) { showError('Выберите фото для анализа'); return; }
 
-    // Проверяем кредиты для залогиненных пользователей
-    if (currentUser && currentProfile && (currentProfile.analysis_credits || 0) < 1) {
-      showPaywall('analysis');
-      return;
-    }
-
     _analyzeStart = Date.now();
     loadingBox.classList.add('visible');
     analyzeBtn.disabled = true;
@@ -1997,9 +1984,7 @@
 
       // Обновляем локальный профиль после анализа
       if (currentUser && currentProfile) {
-        const newCount   = (currentProfile.analyses_count || 0) + 1;
-        const newCredits = Math.max((currentProfile.analysis_credits || 0) - 1, 0);
-        currentProfile = { ...currentProfile, analyses_count: newCount, analysis_credits: newCredits };
+        currentProfile = { ...currentProfile, analyses_count: (currentProfile.analyses_count || 0) + 1 };
         updateAnalysesBadge();
       }
 
