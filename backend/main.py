@@ -47,10 +47,11 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', '')
 
 # YooKassa
-YOOKASSA_SHOP_ID   = config.get('yookassa', 'shop_id',    fallback='') or os.getenv('YOOKASSA_SHOP_ID', '')
-YOOKASSA_SECRET    = config.get('yookassa', 'secret_key', fallback='') or os.getenv('YOOKASSA_SECRET_KEY', '')
-YOOKASSA_PRICE     = config.get('yookassa', 'price',      fallback='299.00')
-YOOKASSA_RETURN_URL = config.get('yookassa', 'return_url', fallback='https://car-scan.ru/')
+YOOKASSA_SHOP_ID     = config.get('yookassa', 'shop_id',        fallback='') or os.getenv('YOOKASSA_SHOP_ID', '')
+YOOKASSA_SECRET      = config.get('yookassa', 'secret_key',     fallback='') or os.getenv('YOOKASSA_SECRET_KEY', '')
+YOOKASSA_ANALYSIS_PRICE = config.get('yookassa', 'analysis_price', fallback='149.00') or os.getenv('YOOKASSA_ANALYSIS_PRICE', '149.00')
+YOOKASSA_PDF_PRICE   = config.get('yookassa', 'pdf_price',      fallback='99.00')  or os.getenv('YOOKASSA_PDF_PRICE', '99.00')
+YOOKASSA_RETURN_URL  = config.get('yookassa', 'return_url',     fallback='https://car-scan.ru/')
 
 if YOOKASSA_SHOP_ID and YOOKASSA_SECRET:
     YKConfig.account_id = YOOKASSA_SHOP_ID
@@ -144,6 +145,7 @@ class FeedbackData(BaseModel):
 
 class PaymentCreateRequest(BaseModel):
     user_id: str
+    type: str = "analysis"  # "analysis" | "pdf"
 
 # === ПРОМПТЫ ===
 
@@ -484,14 +486,14 @@ async def analyze_image(
     if x_user_id:
         async with app.state.pool.acquire() as conn:
             profile = await conn.fetchrow(
-                "SELECT analyses_count, is_paid, email FROM profiles WHERE id = $1",
+                "SELECT analyses_count, analysis_credits, email FROM profiles WHERE id = $1",
                 x_user_id
             )
             is_admin = ADMIN_EMAIL and profile and profile['email'] == ADMIN_EMAIL
-            if not is_admin and profile and profile['analyses_count'] >= 1 and not profile['is_paid']:
+            if not is_admin and profile and profile['analysis_credits'] < 1:
                 raise HTTPException(
                     status_code=402,
-                    detail="Бесплатный анализ уже использован"
+                    detail="Необходимо оплатить анализ"
                 )
 
     # Валидация файла
@@ -576,7 +578,8 @@ async def analyze_image(
 
                 await conn.execute("""
                     UPDATE profiles
-                    SET analyses_count = analyses_count + 1
+                    SET analyses_count     = analyses_count + 1,
+                        analysis_credits   = GREATEST(analysis_credits - 1, 0)
                     WHERE id = $1
                 """, x_user_id)
 
@@ -602,15 +605,15 @@ async def save_pending_analysis(data: AnalysisSaveRequest):
     """Сохраняет результат анализа, сделанного гостем, после его авторизации."""
     async with app.state.pool.acquire() as conn:
         profile = await conn.fetchrow(
-            "SELECT analyses_count, is_paid, email FROM profiles WHERE id = $1",
+            "SELECT analyses_count, analysis_credits, email FROM profiles WHERE id = $1",
             data.user_id
         )
         if not profile:
             raise HTTPException(status_code=404, detail="Профиль не найден")
 
         is_admin = ADMIN_EMAIL and profile['email'] == ADMIN_EMAIL
-        if not is_admin and profile['analyses_count'] >= 1 and not profile['is_paid']:
-            raise HTTPException(status_code=402, detail="Лимит исчерпан")
+        if not is_admin and profile['analysis_credits'] < 1:
+            raise HTTPException(status_code=402, detail="Необходимо оплатить анализ")
 
         await conn.execute("""
             INSERT INTO analyses (user_id, result, photo_name, inspection_type)
@@ -619,7 +622,10 @@ async def save_pending_analysis(data: AnalysisSaveRequest):
              data.photo_name, data.inspection_type or "страховой случай")
 
         await conn.execute("""
-            UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1
+            UPDATE profiles
+            SET analyses_count   = analyses_count + 1,
+                analysis_credits = GREATEST(analysis_credits - 1, 0)
+            WHERE id = $1
         """, data.user_id)
 
     return {"ok": True}
@@ -633,31 +639,33 @@ async def create_payment(data: PaymentCreateRequest):
 
     async with app.state.pool.acquire() as conn:
         profile = await conn.fetchrow(
-            "SELECT is_paid FROM profiles WHERE id = $1", data.user_id
+            "SELECT id FROM profiles WHERE id = $1", data.user_id
         )
     if not profile:
         raise HTTPException(status_code=404, detail="Профиль не найден")
-    if profile['is_paid']:
-        raise HTTPException(status_code=400, detail="Подписка уже активна")
+
+    ptype = data.type if data.type in ("analysis", "pdf") else "analysis"
+    price = YOOKASSA_ANALYSIS_PRICE if ptype == "analysis" else YOOKASSA_PDF_PRICE
+    desc  = "Один анализ повреждений автомобиля" if ptype == "analysis" else "Скачивание PDF-отчёта"
 
     idempotency_key = str(uuid.uuid4())
     payment = YKPayment.create({
-        "amount": {"value": YOOKASSA_PRICE, "currency": "RUB"},
+        "amount": {"value": price, "currency": "RUB"},
         "confirmation": {
             "type": "redirect",
             "return_url": YOOKASSA_RETURN_URL.rstrip('/') + "/?payment=success"
         },
         "capture": True,
-        "description": "Безлимитный доступ к анализу повреждений автомобиля",
-        "metadata": {"user_id": data.user_id}
+        "description": desc,
+        "metadata": {"user_id": data.user_id, "type": ptype}
     }, idempotency_key)
 
     async with app.state.pool.acquire() as conn:
         await conn.execute("""
-            INSERT INTO payments (id, user_id, status, amount)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO payments (id, user_id, status, amount, type)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (id) DO NOTHING
-        """, payment.id, data.user_id, payment.status, float(YOOKASSA_PRICE))
+        """, payment.id, data.user_id, payment.status, float(price), ptype)
 
     return {
         "payment_id": payment.id,
@@ -678,12 +686,19 @@ async def payment_webhook(request: Request):
 
     if event == "payment.succeeded":
         payment_id = obj.get("id")
-        user_id    = obj.get("metadata", {}).get("user_id")
+        meta       = obj.get("metadata", {})
+        user_id    = meta.get("user_id")
+        ptype      = meta.get("type", "analysis")
         if user_id:
             async with app.state.pool.acquire() as conn:
-                await conn.execute(
-                    "UPDATE profiles SET is_paid = TRUE WHERE id = $1", user_id
-                )
+                if ptype == "pdf":
+                    await conn.execute(
+                        "UPDATE profiles SET pdf_credits = pdf_credits + 1 WHERE id = $1", user_id
+                    )
+                else:
+                    await conn.execute(
+                        "UPDATE profiles SET analysis_credits = analysis_credits + 1 WHERE id = $1", user_id
+                    )
                 if payment_id:
                     await conn.execute(
                         "UPDATE payments SET status = 'succeeded' WHERE id = $1", payment_id
