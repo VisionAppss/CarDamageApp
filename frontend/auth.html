@@ -647,9 +647,17 @@
 
     if (error) {
       btn.disabled = false; btn.textContent = 'Получить ссылку →';
-      const msg = (error.message || '').includes('fetch')
-        ? 'Нет соединения с сервером. Проверьте интернет и попробуйте снова.'
-        : 'Ошибка: ' + error.message;
+      let msg;
+      const m = (error.message || '').toLowerCase();
+      if (m.includes('fetch') || m.includes('network')) {
+        msg = 'Нет соединения с сервером. Проверьте интернет и попробуйте снова.';
+      } else if (m.includes('sending') || m.includes('email') || error.code === 'unexpected_failure') {
+        msg = 'Сервис отправки писем временно недоступен. Попробуйте через несколько минут или напишите нам: carscan.ai@yandex.ru';
+      } else if (m.includes('rate') || m.includes('limit')) {
+        msg = 'Слишком много попыток. Подождите несколько минут и попробуйте снова.';
+      } else {
+        msg = 'Ошибка: ' + error.message;
+      }
       showErr('emailError', msg);
       return;
     }
