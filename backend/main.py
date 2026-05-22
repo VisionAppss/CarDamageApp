@@ -274,6 +274,8 @@ async def shutdown():
 # === ХЕЛПЕРЫ ===
 
 def clean_json(raw: str) -> str:
+    if not raw:
+        return "{}"
     if raw.startswith("```"):
         parts = raw.split("```")
         if len(parts) >= 3:
@@ -526,6 +528,8 @@ async def analyze_image(
         )
 
         raw = response.choices[0].message.content
+        if not raw:
+            raise HTTPException(status_code=502, detail="Модель вернула пустой ответ")
         cleaned = clean_json(raw)
 
         try:
