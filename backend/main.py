@@ -209,7 +209,10 @@ Return ONLY valid JSON, no markdown, no explanation:
     "missing_angles": ["missing angle in Russian"],
     "analysis_confidence": number 0-100
   }
-}"""
+}
+
+If the photo does NOT contain a vehicle, return exactly this JSON:
+{"error": "no_vehicle", "message": "На фото не обнаружено транспортное средство"}"""
 
 
 def get_user_prompt(inspection_type: str = "страховой случай") -> str:
@@ -517,9 +520,9 @@ async def analyze_image(
         response = ai_client.chat.completions.create(
             model=f"gpt://{YANDEX_FOLDER}/{YANDEX_MODEL}",
             temperature=0.1,
-            max_tokens=2000,
+            max_tokens=4000,
             messages=[
-                {"role": "system", "content": [{"type": "text", "text": SYSTEM_PROMPT}]},
+                {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": [
                     {"type": "text", "text": get_user_prompt(inspection_type)},
                     {"type": "image_url", "image_url": {"url": f"data:{file.content_type};base64,{base64_image}"}}
@@ -527,15 +530,22 @@ async def analyze_image(
             ]
         )
 
-        raw = response.choices[0].message.content
+        finish_reason = response.choices[0].finish_reason if response.choices else None
+        raw = response.choices[0].message.content if response.choices else None
         if not raw:
-            raise HTTPException(status_code=502, detail="Модель вернула пустой ответ")
+            detail = "Модель вернула пустой ответ"
+            if finish_reason == "length":
+                detail = "Модель вернула пустой ответ (превышен лимит токенов)"
+            raise HTTPException(status_code=502, detail=detail)
         cleaned = clean_json(raw)
 
         try:
             parsed = json.loads(cleaned)
         except json.JSONDecodeError:
             raise HTTPException(status_code=502, detail=f"Невалидный JSON от модели: {raw[:200]}")
+
+        if parsed.get("error") == "no_vehicle":
+            raise HTTPException(status_code=422, detail=parsed.get("message", "На фото не обнаружено транспортное средство"))
 
         # Нормализуем ответ Gemma в нашу схему
         parsed = normalize_result(parsed)
