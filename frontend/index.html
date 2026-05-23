@@ -3020,7 +3020,7 @@
 
   async function downloadPDF() {
     // PDF требует оплаты: либо гостевой флаг, либо pdf_credits у авторизованного
-    const guestPaid = !!localStorage.getItem('ao_pdf_paid');
+    const guestPaid = !!sessionStorage.getItem('ao_pdf_paid');
     const profilePaid = currentProfile && (currentProfile.pdf_credits || 0) >= 1;
     if (!guestPaid && !profilePaid) {
       showPaywall('pdf');
@@ -3130,8 +3130,8 @@
       pdf.save(`avtoskan-report-${dateStr}.pdf`);
 
       // Списываем оплату после скачивания
-      if (localStorage.getItem('ao_pdf_paid')) {
-        localStorage.removeItem('ao_pdf_paid');
+      if (sessionStorage.getItem('ao_pdf_paid')) {
+        sessionStorage.removeItem('ao_pdf_paid');
       } else if (currentProfile) {
         currentProfile = { ...currentProfile, pdf_credits: Math.max((currentProfile.pdf_credits || 0) - 1, 0) };
         updateAnalysesBadge();
@@ -3285,7 +3285,7 @@
       }
       if (paid) {
         localStorage.removeItem('ao_pending_payment_id');
-        localStorage.setItem('ao_pdf_paid', pendingId);
+        sessionStorage.setItem('ao_pdf_paid', pendingId);
         document.getElementById('paywall')?.classList.remove('visible');
 
         // Восстанавливаем результат анализа, если он был сохранён
