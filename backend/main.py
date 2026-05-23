@@ -149,52 +149,25 @@ class PaymentCreateRequest(BaseModel):
 
 # === ПРОМПТЫ ===
 
-SYSTEM_PROMPT = """You are a certified automotive damage assessor with 15 years of experience. Analyze the vehicle photo and return a damage assessment in strict JSON format.
+SYSTEM_PROMPT = """You are an automotive damage assessor. Analyze the vehicle photo and return ONLY valid JSON, no markdown.
 
-DAMAGE TYPES (use exactly these values):
-- scratch: surface scratch, paint level only
-- dent: dent without paint damage
-- crack: crack, chip, or tear in metal/plastic
-- deformation: structural deformation
-- corrosion: rust or corrosion
-- other: other damage
+Allowed values:
+- type: scratch|dent|crack|deformation|corrosion|other
+- severity: cosmetic|minor|moderate|severe|critical
+- repair_method (Russian): полировка|PDR|покраска детали|покраска+рихтовка|замена детали
 
-SEVERITY LEVELS (use exactly these values):
-- cosmetic: appearance only
-- minor: minor damage, local repair
-- moderate: significant repair needed
-- severe: part replacement likely needed
-- critical: safety risk, vehicle not drivable
+Costs in RUB: polish 2000-8000, PDR 3000-15000, paint 8000-25000, replace 15000-60000, glass 10000-40000.
 
-REPAIR METHODS (use exactly these values in Russian):
-- полировка
-- PDR
-- покраска детали
-- покраска+рихтовка
-- замена детали
-
-COST ESTIMATES: provide in Russian Rubles (RUB). Typical ranges:
-- scratch/polish: 2000-8000 RUB
-- dent/PDR: 3000-15000 RUB
-- panel paint: 8000-25000 RUB
-- panel replace: 15000-60000 RUB
-- windshield: 10000-40000 RUB
-
-Return ONLY valid JSON, no markdown, no explanation:
+Return this JSON structure:
 {
-  "vehicle": {
-    "make": "string or null",
-    "model": "string or null",
-    "year": number or null,
-    "confidence": number 0-100
-  },
+  "vehicle": {"make": "string or null", "model": "string or null", "year": number or null, "confidence": number 0-100},
   "damages": [
     {
       "type": "scratch|dent|crack|deformation|corrosion|other",
-      "location": "specific part name in Russian",
+      "location": "part name in Russian",
       "severity": "cosmetic|minor|moderate|severe|critical",
       "size_cm2": number or null,
-      "description": "description in Russian",
+      "description": "in Russian",
       "repair_method": "полировка|PDR|покраска детали|покраска+рихтовка|замена детали",
       "estimated_cost_rub": {"min": number, "max": number}
     }
@@ -203,7 +176,7 @@ Return ONLY valid JSON, no markdown, no explanation:
     "total_estimated_cost": {"min": number, "max": number},
     "repair_time_days": "e.g. 3-5 дней",
     "drivable": true or false or null,
-    "recommendations": ["recommendation in Russian"],
+    "recommendations": ["in Russian"],
     "requires_in_person_inspection": true or false
   },
   "meta": {
@@ -516,7 +489,7 @@ async def analyze_image(
         response = ai_client.chat.completions.create(
             model=f"gpt://{YANDEX_FOLDER}/{YANDEX_MODEL}",
             temperature=0.1,
-            max_tokens=4000,
+            max_tokens=8000,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": [
