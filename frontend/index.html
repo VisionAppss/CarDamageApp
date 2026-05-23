@@ -1472,13 +1472,13 @@
 
   <!-- Paywall -->
   <div class="paywall" id="paywall">
-    <div class="paywall-title" id="paywallTitle">Скачайте PDF-отчёт</div>
+    <div class="paywall-title" id="paywallTitle">Оплатите анализ</div>
     <div class="paywall-sub" id="paywallSub">
-      Единовременная оплата открывает скачивание PDF-отчётов и неограниченные анализы повреждений. Результат за 30 секунд: список повреждений, стоимость ремонта, схема.
+      ИИ-анализ повреждений по фотографии: список дефектов, стоимость ремонта, схема.
     </div>
-    <div class="paywall-price">299 <span>₽</span></div>
-    <div class="paywall-per">единовременный платёж · доступ навсегда</div>
-    <button class="btn-pay" id="btnPay" onclick="startPayment()">Оплатить через ЮKassa</button>
+    <div class="paywall-price"><span id="paywallPriceVal">149</span> <span>₽</span></div>
+    <div class="paywall-per" id="paywallPer">разовый платёж · один анализ</div>
+    <button class="btn-pay" id="btnPay" onclick="startPayment(currentPaywallType)">Оплатить через ЮKassa</button>
     <div class="paywall-delivery">
       После оплаты доступ открывается мгновенно — никаких подтверждений и ожидания.<br>
       Оплата через ЮKassa: карты Visa, Mastercard, МИР, SberPay, YooMoney.
@@ -1558,6 +1558,7 @@
   let lastAnalysisResult      = null;
   let lastAnalysisInspection  = null;
   let _analyzeStart  = 0;
+  let currentPaywallType = 'analysis';  // 'analysis' | 'pdf'
 
   // ── Analytics ──────────────────────────────────────────────
   // Отправляет событие в Яндекс Метрику и сохраняет в Supabase
@@ -1638,34 +1639,38 @@
     // Проверяем возврат после оплаты
     await checkPaymentReturn();
 
-    // Show paywall if free limit reached and not paid
-    if (currentProfile && currentProfile.analyses_count >= 1 && !currentProfile.is_paid) {
-      showPaywall();
-      track('paywall_shown', { analyses_count: currentProfile.analyses_count });
-    }
+    // Paywall показывается on-demand — перед анализом или перед PDF
 
     track('page_view');
   }
 
   function updateAnalysesBadge() {
-    if (!currentProfile) return;
-    if (!currentUser) return;
+    if (!currentProfile || !currentUser) return;
     const el = document.getElementById('userAnalyses');
-    const isPaid = currentProfile.is_paid;
-    const count  = currentProfile.analyses_count || 0;
-    if (isPaid) {
-      el.textContent = 'Подписка активна';
-      el.className = 'user-analyses';
-    } else {
-      el.textContent = count >= 1 ? 'Лимит исчерпан' : `Бесплатных: ${1 - count}`;
-      el.className = 'user-analyses' + (count >= 1 ? ' used' : '');
-    }
+    const pc = currentProfile.pdf_credits || 0;
+    el.textContent = pc > 0 ? `PDF-отчётов: ${pc}` : 'PDF не оплачен';
+    el.className = 'user-analyses' + (pc === 0 ? ' used' : '');
   }
 
-  function showPaywall() {
+  function showPaywall(type = 'analysis') {
+    currentPaywallType = type;
+    const title = document.getElementById('paywallTitle');
+    const sub   = document.getElementById('paywallSub');
+    const price = document.getElementById('paywallPriceVal');
+    const per   = document.getElementById('paywallPer');
+    if (type === 'pdf') {
+      if (title) title.textContent = 'Скачать PDF-отчёт';
+      if (sub)   sub.textContent   = 'Получите полный PDF-отчёт: схема повреждений, стоимость ремонта, рекомендации.';
+      if (price) price.textContent = '99';
+      if (per)   per.textContent   = 'разовый платёж · одно скачивание';
+    } else {
+      if (title) title.textContent = 'Оплатите анализ';
+      if (sub)   sub.textContent   = 'ИИ-анализ повреждений по фотографии: список дефектов, стоимость ремонта, схема.';
+      if (price) price.textContent = '149';
+      if (per)   per.textContent   = 'разовый платёж · один анализ';
+    }
     document.getElementById('paywall').classList.add('visible');
-    document.getElementById('analyzeBtn').disabled = true;
-    document.getElementById('analyzeBtn').textContent = 'Требуется подписка';
+    document.getElementById('paywall').scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
   async function handleLogout() {
@@ -1682,10 +1687,10 @@
     document.getElementById('cabinetEmail').textContent = currentUser?.email || '';
 
     // Stats
-    const isPaid = currentProfile?.is_paid;
-    const count  = currentProfile?.analyses_count || 0;
-    document.getElementById('cabStatus').textContent  = isPaid ? 'Подписка активна' : 'Бесплатный';
-    document.getElementById('cabStatus').className    = 'cabinet-stat-value ' + (isPaid ? 'paid' : 'free');
+    const pc    = currentProfile?.pdf_credits || 0;
+    const count = currentProfile?.analyses_count || 0;
+    document.getElementById('cabStatus').textContent  = pc > 0 ? `${pc} PDF-отчёт` : 'Нет PDF';
+    document.getElementById('cabStatus').className    = 'cabinet-stat-value ' + (pc > 0 ? 'paid' : 'free');
     document.getElementById('cabCount').textContent   = count;
     document.getElementById('cabDate').textContent    = currentUser?.created_at
       ? new Date(currentUser.created_at).toLocaleDateString('ru-RU')
@@ -1979,10 +1984,8 @@
 
       // Обновляем локальный профиль после анализа
       if (currentUser && currentProfile) {
-        const newCount = (currentProfile.analyses_count || 0) + 1;
-        currentProfile = { ...currentProfile, analyses_count: newCount };
+        currentProfile = { ...currentProfile, analyses_count: (currentProfile.analyses_count || 0) + 1 };
         updateAnalysesBadge();
-        if (newCount >= 1 && !currentProfile.is_paid) showPaywall();
       }
 
     } catch(e) {
@@ -3015,13 +3018,9 @@
   });
 
   async function downloadPDF() {
-    // PDF требует оплаты
-    if (!currentProfile?.is_paid) {
-      const paywallEl = document.getElementById('paywall');
-      if (paywallEl) {
-        paywallEl.classList.add('visible');
-        paywallEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+    // PDF требует pdf_credits
+    if (!currentProfile || (currentProfile.pdf_credits || 0) < 1) {
+      showPaywall('pdf');
       return;
     }
 
@@ -3127,6 +3126,12 @@
       const dateStr = now.toLocaleDateString('ru-RU').replace(/\./g, '-');
       pdf.save(`avtoskan-report-${dateStr}.pdf`);
 
+      // Обновляем локальный счётчик
+      if (currentProfile) {
+        currentProfile = { ...currentProfile, pdf_credits: Math.max((currentProfile.pdf_credits || 0) - 1, 0) };
+        updateAnalysesBadge();
+      }
+
     } catch (e) {
       console.error('PDF error:', e);
       alert('Не удалось создать PDF. Попробуйте ещё раз.');
@@ -3219,7 +3224,7 @@
 
   // ── YooKassa Payment ──
 
-  async function startPayment() {
+  async function startPayment(type = 'analysis') {
     if (!currentUser) {
       // Сохраняем анализ — восстановится после логина
       if (lastAnalysisResult) {
@@ -3241,7 +3246,7 @@
       const res = await fetch('/api/payment/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUser.id })
+        body: JSON.stringify({ user_id: currentUser.id, type })
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -3266,11 +3271,9 @@
       const res = await fetch('/api/profile/' + currentUser.id);
       if (!res.ok) return;
       currentProfile = await res.json();
-      if (currentProfile.is_paid) {
+      const hasCredits = (currentProfile.analysis_credits || 0) > 0 || (currentProfile.pdf_credits || 0) > 0;
+      if (hasCredits) {
         document.getElementById('paywall').classList.remove('visible');
-        const analyzeBtn = document.getElementById('analyzeBtn');
-        analyzeBtn.disabled = false;
-        analyzeBtn.textContent = 'Анализировать';
         updateAnalysesBadge();
         track('payment_success');
         showPaymentSuccessBanner();
