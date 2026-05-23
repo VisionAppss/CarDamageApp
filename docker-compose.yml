@@ -39,6 +39,8 @@ services:
       - DB_USER=appuser
       - DB_PASSWORD=${DB_PASSWORD}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
+      - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
     depends_on:
       db:
         condition: service_healthy
