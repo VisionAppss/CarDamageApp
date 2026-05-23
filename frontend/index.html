@@ -3018,8 +3018,10 @@
   });
 
   async function downloadPDF() {
-    // PDF требует pdf_credits
-    if (!currentProfile || (currentProfile.pdf_credits || 0) < 1) {
+    // PDF требует оплаты: либо гостевой флаг, либо pdf_credits у авторизованного
+    const guestPaid = !!localStorage.getItem('ao_pdf_paid');
+    const profilePaid = currentProfile && (currentProfile.pdf_credits || 0) >= 1;
+    if (!guestPaid && !profilePaid) {
       showPaywall('pdf');
       return;
     }
@@ -3126,8 +3128,10 @@
       const dateStr = now.toLocaleDateString('ru-RU').replace(/\./g, '-');
       pdf.save(`avtoskan-report-${dateStr}.pdf`);
 
-      // Обновляем локальный счётчик
-      if (currentProfile) {
+      // Списываем оплату после скачивания
+      if (localStorage.getItem('ao_pdf_paid')) {
+        localStorage.removeItem('ao_pdf_paid');
+      } else if (currentProfile) {
         currentProfile = { ...currentProfile, pdf_credits: Math.max((currentProfile.pdf_credits || 0) - 1, 0) };
         updateAnalysesBadge();
       }
@@ -3224,35 +3228,24 @@
 
   // ── YooKassa Payment ──
 
-  async function startPayment(type = 'analysis') {
-    if (!currentUser) {
-      // Сохраняем анализ — восстановится после логина
-      if (lastAnalysisResult) {
-        try {
-          localStorage.setItem('ao_pending_analysis', JSON.stringify({
-            result: lastAnalysisResult,
-            inspection_type: lastAnalysisInspection || 'страховой случай',
-            saved_at: Date.now()
-          }));
-        } catch(e) {}
-      }
-      window.location.href = '/auth.html';
-      return;
-    }
+  async function startPayment(type = 'pdf') {
     const btn = document.getElementById('btnPay');
     btn.disabled = true;
     btn.textContent = 'Создаём платёж…';
     try {
+      const body = { type: 'pdf' };
+      if (currentUser) body.user_id = currentUser.id;
       const res = await fetch('/api/payment/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUser.id, type })
+        body: JSON.stringify(body)
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || 'Ошибка создания платежа');
       }
-      const { confirmation_url } = await res.json();
+      const { payment_id, confirmation_url } = await res.json();
+      try { localStorage.setItem('ao_pending_payment_id', payment_id); } catch(e) {}
       track('payment_started');
       window.location.href = confirmation_url;
     } catch(e) {
@@ -3266,13 +3259,33 @@
     const params = new URLSearchParams(window.location.search);
     if (params.get('payment') !== 'success') return;
     history.replaceState({}, '', window.location.pathname);
+
+    // Проверяем платёж гостя через payment_id из localStorage
+    const pendingId = localStorage.getItem('ao_pending_payment_id');
+    if (pendingId) {
+      try {
+        const res = await fetch('/api/payment/status/' + pendingId);
+        if (res.ok) {
+          const { paid } = await res.json();
+          if (paid) {
+            localStorage.removeItem('ao_pending_payment_id');
+            localStorage.setItem('ao_pdf_paid', pendingId);
+            document.getElementById('paywall')?.classList.remove('visible');
+            track('payment_success');
+            showPaymentSuccessBanner();
+            return;
+          }
+        }
+      } catch(e) { /* не критично */ }
+    }
+
+    // Авторизованный пользователь — обновляем профиль
     if (!currentUser) return;
     try {
       const res = await fetch('/api/profile/' + currentUser.id);
       if (!res.ok) return;
       currentProfile = await res.json();
-      const hasCredits = (currentProfile.analysis_credits || 0) > 0 || (currentProfile.pdf_credits || 0) > 0;
-      if (hasCredits) {
+      if ((currentProfile.pdf_credits || 0) > 0) {
         document.getElementById('paywall').classList.remove('visible');
         updateAnalysesBadge();
         track('payment_success');
@@ -3286,7 +3299,7 @@
     banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);' +
       'background:#111;color:#fff;padding:12px 20px;font-size:13px;z-index:9999;' +
       'border-radius:2px;box-shadow:0 4px 12px rgba(0,0,0,.3);white-space:nowrap;';
-    banner.textContent = 'Оплата прошла успешно — анализы доступны!';
+    banner.textContent = 'Оплата прошла успешно — PDF-отчёт доступен для скачивания!';
     document.body.appendChild(banner);
     setTimeout(() => banner.remove(), 5000);
   }
