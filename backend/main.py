@@ -144,8 +144,8 @@ class FeedbackData(BaseModel):
     url: Optional[str] = None
 
 class PaymentCreateRequest(BaseModel):
-    user_id: str
-    type: str = "analysis"  # "analysis" | "pdf"
+    user_id: Optional[str] = None
+    type: str = "pdf"
 
 # === ПРОМПТЫ ===
 
@@ -594,16 +594,9 @@ async def create_payment(data: PaymentCreateRequest):
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET:
         raise HTTPException(status_code=503, detail="Оплата временно недоступна")
 
-    async with app.state.pool.acquire() as conn:
-        profile = await conn.fetchrow(
-            "SELECT id FROM profiles WHERE id = $1", data.user_id
-        )
-    if not profile:
-        raise HTTPException(status_code=404, detail="Профиль не найден")
-
-    ptype = data.type if data.type in ("analysis", "pdf") else "analysis"
-    price = YOOKASSA_ANALYSIS_PRICE if ptype == "analysis" else YOOKASSA_PDF_PRICE
-    desc  = "Один анализ повреждений автомобиля" if ptype == "analysis" else "Скачивание PDF-отчёта"
+    ptype = "pdf"
+    price = YOOKASSA_PDF_PRICE
+    desc  = "Скачивание PDF-отчёта об оценке повреждений автомобиля"
 
     idempotency_key = str(uuid.uuid4())
     payment = YKPayment.create({
@@ -614,15 +607,16 @@ async def create_payment(data: PaymentCreateRequest):
         },
         "capture": True,
         "description": desc,
-        "metadata": {"user_id": data.user_id, "type": ptype}
+        "metadata": {"user_id": data.user_id or "", "type": ptype}
     }, idempotency_key)
 
-    async with app.state.pool.acquire() as conn:
-        await conn.execute("""
-            INSERT INTO payments (id, user_id, status, amount, type)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (id) DO NOTHING
-        """, payment.id, data.user_id, payment.status, float(price), ptype)
+    if data.user_id:
+        async with app.state.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO payments (id, user_id, status, amount, type)
+                VALUES ($1, $2, $3, $4, $5)
+                ON CONFLICT (id) DO NOTHING
+            """, payment.id, data.user_id, payment.status, float(price), ptype)
 
     return {
         "payment_id": payment.id,
