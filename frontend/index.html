@@ -1601,6 +1601,7 @@
 
     if (!session) {
       // Гость — показываем страницу без userBar, анализ доступен
+      await checkPaymentReturn();
       track('page_view');
       return;
     }
@@ -3229,6 +3230,16 @@
   // ── YooKassa Payment ──
 
   async function startPayment(type = 'pdf') {
+    // Сохраняем результат анализа — он понадобится после возврата с оплаты
+    if (lastAnalysisResult) {
+      try {
+        localStorage.setItem('ao_pdf_pending_result', JSON.stringify({
+          result: lastAnalysisResult,
+          inspection_type: lastAnalysisInspection || 'страховой случай'
+        }));
+      } catch(e) {}
+    }
+
     const btn = document.getElementById('btnPay');
     btn.disabled = true;
     btn.textContent = 'Создаём платёж…';
@@ -3263,20 +3274,36 @@
     // Проверяем платёж гостя через payment_id из localStorage
     const pendingId = localStorage.getItem('ao_pending_payment_id');
     if (pendingId) {
-      try {
-        const res = await fetch('/api/payment/status/' + pendingId);
-        if (res.ok) {
-          const { paid } = await res.json();
-          if (paid) {
-            localStorage.removeItem('ao_pending_payment_id');
-            localStorage.setItem('ao_pdf_paid', pendingId);
-            document.getElementById('paywall')?.classList.remove('visible');
-            track('payment_success');
-            showPaymentSuccessBanner();
-            return;
-          }
+      // Ретраи: ЮКасса иногда редиректит до подтверждения оплаты
+      let paid = false;
+      for (let attempt = 0; attempt < 5 && !paid; attempt++) {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+        try {
+          const res = await fetch('/api/payment/status/' + pendingId);
+          if (res.ok) ({ paid } = await res.json());
+        } catch(e) { /* сеть */ }
+      }
+      if (paid) {
+        localStorage.removeItem('ao_pending_payment_id');
+        localStorage.setItem('ao_pdf_paid', pendingId);
+        document.getElementById('paywall')?.classList.remove('visible');
+
+        // Восстанавливаем результат анализа, если он был сохранён
+        const savedRaw = localStorage.getItem('ao_pdf_pending_result');
+        if (savedRaw) {
+          try {
+            const saved = JSON.parse(savedRaw);
+            lastAnalysisResult     = saved.result;
+            lastAnalysisInspection = saved.inspection_type;
+            renderResult(saved.result);
+            localStorage.removeItem('ao_pdf_pending_result');
+          } catch(e) {}
         }
-      } catch(e) { /* не критично */ }
+
+        track('payment_success');
+        showPaymentSuccessBanner();
+        return;
+      }
     }
 
     // Авторизованный пользователь — обновляем профиль
