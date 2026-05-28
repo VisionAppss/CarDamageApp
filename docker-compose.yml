@@ -41,6 +41,8 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL}
       - YOOKASSA_SHOP_ID=${YOOKASSA_SHOP_ID}
       - YOOKASSA_SECRET_KEY=${YOOKASSA_SECRET_KEY}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
     depends_on:
       db:
         condition: service_healthy

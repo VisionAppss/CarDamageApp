@@ -6,3 +6,4 @@ httpx
 asyncpg
 yookassa
 python-json-logger
+aiosmtplib

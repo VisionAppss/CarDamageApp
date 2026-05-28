@@ -457,11 +457,11 @@
       </div>
 
       <button class="btn-primary" id="sendCodeBtn" onclick="handleSendCode()">
-        Получить ссылку →
+        Получить код →
       </button>
 
       <div class="hint-row">
-        <span>Ссылка для входа придёт на почту</span>
+        <span>Код из 6 цифр придёт на почту</span>
       </div>
       <div style="margin-top:10px;font-size:11px;color:#bbb;line-height:1.6">
         Нажимая кнопку, вы принимаете
@@ -471,17 +471,26 @@
       </div>
     </div>
 
-    <!-- Screen 2: Link sent -->
-    <div class="card screen" id="screen-sent">
-      <div class="card-label">Проверьте почту</div>
+    <!-- Screen 2: OTP code input -->
+    <div class="card screen" id="screen-code">
+      <div class="card-label">Введите код</div>
       <div style="font-size:13px;color:#444;line-height:1.7;margin-bottom:20px">
-        Мы отправили ссылку для входа на<br>
+        Мы отправили 6-значный код на<br>
         <strong id="sentEmail" style="color:#181818"></strong>
-        <br><br>
-        Нажмите на ссылку в письме — и вы войдёте автоматически.<br>
-        Письмо может прийти в течение 1–2 минут.
       </div>
-      <div class="hint-row" style="margin-top:0">
+
+      <div class="error-box" id="codeError"><p id="codeErrorText"></p></div>
+
+      <div class="field">
+        <label class="field-label" for="codeInput">Код из письма</label>
+        <input type="text" id="codeInput" placeholder="123456" autocomplete="one-time-code"
+          maxlength="6" inputmode="numeric"
+          style="width:100%;padding:12px;border:1px solid #181818;font-family:inherit;font-size:22px;letter-spacing:6px;text-align:center;outline:none;background:#fff;color:#181818;">
+      </div>
+
+      <button class="btn-primary" id="verifyBtn" onclick="handleVerifyCode()">Войти →</button>
+
+      <div class="hint-row" style="margin-top:14px">
         <span id="timerBlock">Отправить повторно через <span class="timer-val" id="timerVal">60</span> с</span>
         <button class="btn-link" id="resendBtn" style="display:none" onclick="handleResend()">Отправить снова</button>
         <button class="btn-link" onclick="goBack()">← Изменить email</button>
@@ -584,25 +593,14 @@
   </div>
 </div>
 
-<!-- Supabase JS -->
-<script src="/supabase.js"></script>
-
 <script>
-  // ── Supabase init ──
-  const SUPABASE_URL  = 'https://bxeyrsaovexzkzfdrxym.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4ZXlyc2FvdmV4emt6ZmRyeHltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzY2MTIsImV4cCI6MjA5MDIxMjYxMn0.hvCuqm5iBwG0aaKjFc6QrIgQuWZt1PtuZoyv3jWEkj4';
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
-  // ── Handle magic link callback OR redirect if already logged in ──
-  sb.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN' && session) {
-      window.location.href = '/';
-    }
-  });
-
-  sb.auth.getSession().then(({ data }) => {
-    if (data.session) window.location.href = '/';
-  });
+  // Если уже залогинен — на главную
+  const _tok = localStorage.getItem('ao_session');
+  if (_tok) {
+    fetch('/api/auth/me', { headers: { 'x-session-token': _tok } })
+      .then(r => r.json()).then(d => { if (d.user) window.location.href = '/'; })
+      .catch(() => {});
+  }
 
   let currentEmail = '', timerInterval = null;
 
@@ -615,66 +613,83 @@
     if (name === 'success') {
       document.querySelector('.auth-grid').style.display = 'none';
       $('screen-success').style.display = 'block';
-      setTimeout(() => { window.location.href = '/'; }, 2200);
+      setTimeout(() => { window.location.href = '/'; }, 1800);
       return;
     }
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     $('screen-' + name).classList.add('active');
+    if (name === 'code') setTimeout(() => $('codeInput')?.focus(), 50);
   }
 
-  // ── Email ──
+  // ── Email → отправить код ──
   async function handleSendCode() {
     const val = $('emailInput').value.trim();
     hideErr('emailError');
     $('emailInput').classList.remove('error');
     if (!val) { showErr('emailError', 'Введите email адрес'); $('emailInput').classList.add('error'); return; }
-    if (!isEmail(val)) { showErr('emailError', 'Некорректный email адрес'); $('emailInput').classList.add('error'); return; }
-    doSendCode(val);
-  }
+    if (!isEmail(val)) { showErr('emailError', 'Некорректный email'); $('emailInput').classList.add('error'); return; }
 
-  async function doSendCode(email) {
-    currentEmail = email;
     const btn = $('sendCodeBtn');
     btn.disabled = true; btn.textContent = 'Отправляем…';
-
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: window.location.origin + '/?auth=callback'
-      }
-    });
-
-    if (error) {
-      btn.disabled = false; btn.textContent = 'Получить ссылку →';
-      let msg;
-      const m = (error.message || '').toLowerCase();
-      if (m.includes('fetch') || m.includes('network')) {
-        msg = 'Нет соединения с сервером. Проверьте интернет и попробуйте снова.';
-      } else if (m.includes('sending') || m.includes('email') || error.code === 'unexpected_failure') {
-        msg = 'Сервис отправки писем временно недоступен. Попробуйте через несколько минут или напишите нам: carscan.ai@yandex.ru';
-      } else if (m.includes('rate') || m.includes('limit')) {
-        msg = 'Слишком много попыток. Подождите несколько минут и попробуйте снова.';
-      } else {
-        msg = 'Ошибка: ' + error.message;
-      }
+    try {
+      const res = await fetch('/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: val })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Ошибка');
+      currentEmail = val;
+      $('sentEmail').textContent = val;
+      showScreen('code');
+      startTimer();
+    } catch(e) {
+      const m = (e.message || '').toLowerCase();
+      let msg = m.includes('минуту') ? e.message
+              : m.includes('fetch') || m.includes('network') ? 'Нет соединения. Проверьте интернет.'
+              : 'Ошибка: ' + e.message;
       showErr('emailError', msg);
-      return;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Получить код →';
     }
+  }
 
-    // Фиксируем согласие — нажатие кнопки является явным акцептом условий
-    try { localStorage.setItem('ao_consent_' + email, '1'); } catch(e) {}
+  // ── Код → войти ──
+  async function handleVerifyCode() {
+    const code = $('codeInput').value.replace(/\D/g, '');
+    hideErr('codeError');
+    if (code.length !== 6) { showErr('codeError', 'Введите 6-значный код'); return; }
 
-    // Показываем экран ожидания — ссылка отправлена
-    $('sentEmail').textContent = email;
-    showScreen('sent');
-    startTimer();
-    btn.disabled = false; btn.textContent = 'Получить ссылку →';
+    const btn = $('verifyBtn');
+    btn.disabled = true; btn.textContent = 'Проверяем…';
+    try {
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: currentEmail, code })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Неверный код');
+      localStorage.setItem('ao_session', data.token);
+      showScreen('success');
+    } catch(e) {
+      showErr('codeError', e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Войти →';
+    }
   }
 
   $('emailInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') handleSendCode();
     $('emailInput').classList.remove('error');
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const ci = $('codeInput');
+    if (ci) {
+      ci.addEventListener('keydown', e => { if (e.key === 'Enter') handleVerifyCode(); });
+      ci.addEventListener('input', () => { ci.value = ci.value.replace(/\D/g, ''); });
+    }
   });
 
   function goBack() {
@@ -683,20 +698,32 @@
     $('emailInput').value = '';
   }
 
-  // ── Timer ──
+  // ── Таймер повторной отправки ──
   function startTimer() {
-    let s=60;
-    $('timerBlock').style.display='inline'; $('resendBtn').style.display='none'; $('timerVal').textContent=s;
+    let s = 60;
+    $('timerBlock').style.display = 'inline'; $('resendBtn').style.display = 'none';
+    $('timerVal').textContent = s;
     clearInterval(timerInterval);
     timerInterval = setInterval(() => {
       $('timerVal').textContent = --s;
-      if (s<=0) { clearInterval(timerInterval); $('timerBlock').style.display='none'; $('resendBtn').style.display='inline'; }
+      if (s <= 0) {
+        clearInterval(timerInterval);
+        $('timerBlock').style.display = 'none';
+        $('resendBtn').style.display = 'inline';
+      }
     }, 1000);
   }
 
   async function handleResend() {
-    await sb.auth.signInWithOtp({ email: currentEmail, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin + '/?auth=callback' } });
-    startTimer();
+    try {
+      const res = await fetch('/api/auth/send-code', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: currentEmail })
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.detail); }
+      startTimer();
+      $('codeInput').value = '';
+    } catch(e) { showErr('codeError', e.message); }
   }
 
   // ── Consent modal tabs (доступны по ссылкам из футера) ──
