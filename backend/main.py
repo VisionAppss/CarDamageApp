@@ -599,16 +599,19 @@ async def create_payment(data: PaymentCreateRequest):
     desc  = "Скачивание PDF-отчёта об оценке повреждений автомобиля"
 
     idempotency_key = str(uuid.uuid4())
-    payment = YKPayment.create({
-        "amount": {"value": price, "currency": "RUB"},
-        "confirmation": {
-            "type": "redirect",
-            "return_url": YOOKASSA_RETURN_URL.rstrip('/') + "/?payment=success"
-        },
-        "capture": True,
-        "description": desc,
-        "metadata": {"user_id": data.user_id or "", "type": ptype}
-    }, idempotency_key)
+    try:
+        payment = YKPayment.create({
+            "amount": {"value": price, "currency": "RUB"},
+            "confirmation": {
+                "type": "redirect",
+                "return_url": YOOKASSA_RETURN_URL.rstrip('/') + "/?payment=success"
+            },
+            "capture": True,
+            "description": desc,
+            "metadata": {"user_id": data.user_id or "", "type": ptype}
+        }, idempotency_key)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ошибка ЮКасса: {e}")
 
     if data.user_id:
         async with app.state.pool.acquire() as conn:
