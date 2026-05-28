@@ -146,6 +146,7 @@ class FeedbackData(BaseModel):
 class PaymentCreateRequest(BaseModel):
     user_id: Optional[str] = None
     type: str = "pdf"
+    customer_email: Optional[str] = None
 
 # === ПРОМПТЫ ===
 
@@ -599,17 +600,30 @@ async def create_payment(data: PaymentCreateRequest):
     desc  = "Скачивание PDF-отчёта об оценке повреждений автомобиля"
 
     idempotency_key = str(uuid.uuid4())
+    payment_body = {
+        "amount": {"value": price, "currency": "RUB"},
+        "confirmation": {
+            "type": "redirect",
+            "return_url": YOOKASSA_RETURN_URL.rstrip('/') + "/?payment=success"
+        },
+        "capture": True,
+        "description": desc,
+        "metadata": {"user_id": data.user_id or "", "type": ptype},
+    }
+    if data.customer_email:
+        payment_body["receipt"] = {
+            "customer": {"email": data.customer_email},
+            "items": [{
+                "description": desc,
+                "quantity": "1.00",
+                "amount": {"value": price, "currency": "RUB"},
+                "vat_code": 1,  # без НДС (ИП на УСН)
+                "payment_mode": "full_payment",
+                "payment_subject": "service",
+            }]
+        }
     try:
-        payment = YKPayment.create({
-            "amount": {"value": price, "currency": "RUB"},
-            "confirmation": {
-                "type": "redirect",
-                "return_url": YOOKASSA_RETURN_URL.rstrip('/') + "/?payment=success"
-            },
-            "capture": True,
-            "description": desc,
-            "metadata": {"user_id": data.user_id or "", "type": ptype}
-        }, idempotency_key)
+        payment = YKPayment.create(payment_body, idempotency_key)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка ЮКасса: {e}")
 
