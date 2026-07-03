@@ -8,6 +8,8 @@ COPY index.html /usr/share/nginx/html/
 RUN chmod 644 /usr/share/nginx/html/index.html
 COPY auth.html /usr/share/nginx/html/
 RUN chmod 644 /usr/share/nginx/html/auth.html
+COPY promo.html /usr/share/nginx/html/
+RUN chmod 644 /usr/share/nginx/html/promo.html
 
 # Копируем конфиг nginx
 COPY icons/ /usr/share/nginx/html/icons/

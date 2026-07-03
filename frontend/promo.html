@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Car-Scan — AI-оценка повреждений автомобиля</title>
+  <meta name="description" content="Загрузите фото повреждений — получите детальный отчёт с оценкой ущерба за 60 секунд." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #18181b;
+      --border: #27272a;
+      --accent: #e63946;
+      --accent-dim: rgba(230,57,70,.15);
+      --text: #f4f4f5;
+      --muted: #a1a1aa;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* NAV */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 5%;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { font-size: 1.25rem; font-weight: 700; letter-spacing: -.5px; }
+    .logo span { color: var(--accent); }
+    .nav-cta {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 9px 22px;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .nav-cta:hover { opacity: .88; }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: 90px 5% 70px;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--accent-dim);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .5px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+    .hero h1 em { color: var(--accent); font-style: normal; }
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto 36px;
+    }
+    .hero-cta {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      padding: 14px 38px;
+      border-radius: var(--radius);
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .hero-cta:hover { opacity: .88; }
+    .hero-note { margin-top: 14px; font-size: .82rem; color: var(--muted); }
+
+    /* HOW IT WORKS */
+    .section {
+      padding: 70px 5%;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .section-title {
+      text-align: center;
+      font-size: 1.7rem;
+      font-weight: 700;
+      margin-bottom: 50px;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
+    }
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+    }
+    .step-num {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .step h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+    .step p { font-size: .9rem; color: var(--muted); }
+
+    /* FEATURES */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+    }
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .feature-icon { font-size: 1.6rem; flex-shrink: 0; line-height: 1; }
+    .feature h3 { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
+    .feature p { font-size: .85rem; color: var(--muted); }
+
+    /* PRICE */
+    .price-card {
+      max-width: 420px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 36px 32px;
+      text-align: center;
+    }
+    .price-label { font-size: .85rem; color: var(--muted); margin-bottom: 8px; }
+    .price-amount { font-size: 3rem; font-weight: 800; }
+    .price-amount sup { font-size: 1.4rem; vertical-align: super; }
+    .price-per { font-size: .85rem; color: var(--muted); margin-bottom: 24px; }
+    .price-features { list-style: none; margin-bottom: 28px; text-align: left; }
+    .price-features li { padding: 7px 0; font-size: .92rem; border-bottom: 1px solid var(--border); }
+    .price-features li:last-child { border-bottom: none; }
+    .price-features li::before { content: '✓ '; color: var(--accent); font-weight: 700; }
+    .price-cta {
+      display: block;
+      background: var(--accent);
+      color: #fff;
+      padding: 14px;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .price-cta:hover { opacity: .88; }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 5%;
+      text-align: center;
+      font-size: .8rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--muted); text-decoration: underline; }
+
+    /* DIVIDER */
+    hr.divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Car<span>-Scan</span></div>
+  <a class="nav-cta" href="/">Попробовать бесплатно</a>
+</nav>
+
+<section class="hero">
+  <div class="badge">AI · Оценка ущерба · PDF-отчёт</div>
+  <h1>Оцените повреждения авто<br/><em>за 60 секунд</em></h1>
+  <p>Загрузите фото — нейросеть определит все повреждения и сформирует детальный PDF-отчёт для страховой или суда.</p>
+  <a class="hero-cta" href="/">Загрузить фото →</a>
+  <p class="hero-note">Оплата только за результат — 99 ₽ за отчёт</p>
+</section>
+
+<hr class="divider"/>
+
+<section class="section">
+  <h2 class="section-title">Как это работает</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>Загрузите фото</h3>
+      <p>Сфотографируйте повреждённые части автомобиля с разных ракурсов.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>AI анализирует</h3>
+      <p>Модель определяет вид, расположение и серьёзность каждого повреждения.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>Оплатите отчёт</h3>
+      <p>Один раз — 99 ₽. Никаких подписок. Оплата через ЮКассу.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <h3>Скачайте PDF</h3>
+      <p>Готовый документ с описанием ущерба для страховой компании или СТО.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<section class="section">
+  <h2 class="section-title">Что входит в отчёт</h2>
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon">🔍</div>
+      <div>
+        <h3>Детальное описание повреждений</h3>
+        <p>Каждая деталь с локализацией: капот, дверь, бампер, стойки и т.д.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📊</div>
+      <div>
+        <h3>Оценка серьёзности</h3>
+        <p>Лёгкие, средние и тяжёлые повреждения — чётко разделены.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">💰</div>
+      <div>
+        <h3>Ориентировочная стоимость</h3>
+        <p>Примерная стоимость ремонта для каждого вида работ.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📄</div>
+      <div>
+        <h3>PDF для страховой</h3>
+        <p>Форматированный документ, удобный для предъявления в страховую или СТО.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">⚡</div>
+      <div>
+        <h3>Результат за 60 секунд</h3>
+        <p>Без очередей и визита к эксперту — всё онлайн в любое время.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🔒</div>
+      <div>
+        <h3>Данные не хранятся</h3>
+        <p>Фото удаляются после анализа. Результат — только у вас.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider"/>
+
+<section class="section">
+  <h2 class="section-title">Стоимость</h2>
+  <div class="price-card">
+    <div class="price-label">Один отчёт</div>
+    <div class="price-amount"><sup>₽</sup>99</div>
+    <div class="price-per">разовый платёж · без подписки</div>
+    <ul class="price-features">
+      <li>Полный AI-анализ повреждений</li>
+      <li>PDF-отчёт для загрузки</li>
+      <li>Мгновенный результат</li>
+      <li>Оплата через ЮКассу</li>
+    </ul>
+    <a class="price-cta" href="/">Начать анализ →</a>
+  </div>
+</section>
+
+<footer>
+  © 2025 Car-Scan.ru &nbsp;·&nbsp;
+  <a href="/privacy.html">Политика конфиденциальности</a> &nbsp;·&nbsp;
+  <a href="/terms.html">Пользовательское соглашение</a>
+</footer>
+
+</body>
+</html>
