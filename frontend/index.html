@@ -2231,10 +2231,11 @@
       ).join(', ');
       const tMin = summary.total_estimated_cost?.min;
       const tMax = summary.total_estimated_cost?.max;
-      const discount = tMin ? Math.round(tMin * 1.35 / 500) * 500 : null;
-      const costPart = tMin ? `Ремонт выйдет в ${fmtRange(tMin, tMax)}. ` : '';
-      const discountPart = discount ? `Готов выйти на сделку при скидке ${fmt(discount)}.` : '';
-      const scriptText = `«Здравствуйте! Машина понравилась. По фото вижу ${topDmg}. ${costPart}${discountPart}»`;
+      const discount = tMin ? Math.round(tMin / 500) * 500 : null;
+      const costPart = tMin ? `ремонт выйдет в ${fmtRange(tMin, tMax)}` : '';
+      const discountPart = discount ? `прошу скидку ${fmt(discount)}` : '';
+      const parts = [costPart, discountPart].filter(Boolean);
+      const scriptText = `«Здравствуйте! Машина понравилась. По фото вижу ${topDmg}${parts.length ? ' — ' + parts.join(', ') : ''}. Готовы договориться?»`;
       html += `<div class="seller-script">
         <div class="seller-script-label">Скрипт для переговоров с продавцом</div>
         <div class="seller-script-text" id="sellerScriptText">${esc(scriptText)}</div>
