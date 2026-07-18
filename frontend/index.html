@@ -2550,8 +2550,15 @@
     if (photoSrc) {
       const allMarkerData = [];
       damages.forEach((d, i) => {
+        let p;
+        if (d.bbox && typeof d.bbox.x === 'number') {
+          // use center of bbox returned by AI
+          p = { x: d.bbox.x + d.bbox.w / 2, y: d.bbox.y + d.bbox.h / 2 };
+        } else {
+          p = { ...locMarker(d.location) };
+        }
         allMarkerData.push({
-          p: { ...locMarker(d.location) },
+          p,
           num: i + 1,
           name: damageLabel(d.type),
           loc: d.location || '',

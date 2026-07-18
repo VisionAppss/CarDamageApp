@@ -102,6 +102,13 @@ class CostRange(BaseModel):
         return v
 
 
+class BBox(BaseModel):
+    x: float = Field(ge=0, le=100)
+    y: float = Field(ge=0, le=100)
+    w: float = Field(ge=0, le=100)
+    h: float = Field(ge=0, le=100)
+
+
 class DamageItem(BaseModel):
     type: Literal["scratch", "dent", "crack", "deformation", "corrosion", "other"]
     location: str
@@ -110,6 +117,7 @@ class DamageItem(BaseModel):
     description: str
     repair_method: str
     estimated_cost_rub: CostRange
+    bbox: Optional[BBox] = None
 
 
 class Summary(BaseModel):
@@ -172,6 +180,7 @@ Allowed values:
 - type: scratch|dent|crack|deformation|corrosion|other
 - severity: cosmetic|minor|moderate|severe|critical
 - repair_method (Russian): полировка|PDR|покраска детали|покраска+рихтовка|замена детали
+- bbox: bounding box of the damage area as percentages of image width/height (x,y = top-left corner, w,h = size). All values 0-100.
 
 Costs in RUB: polish 2000-8000, PDR 3000-15000, paint 8000-25000, replace 15000-60000, glass 10000-40000.
 
@@ -186,7 +195,8 @@ Return this JSON structure:
       "size_cm2": number or null,
       "description": "in Russian",
       "repair_method": "полировка|PDR|покраска детали|покраска+рихтовка|замена детали",
-      "estimated_cost_rub": {"min": number, "max": number}
+      "estimated_cost_rub": {"min": number, "max": number},
+      "bbox": {"x": number, "y": number, "w": number, "h": number}
     }
   ],
   "summary": {
@@ -311,6 +321,19 @@ def normalize_damage(d: dict) -> dict:
     method = d.get('repair_method', 'замена детали')
     method = method_map.get(method.lower(), method)
 
+    raw_bbox = d.get('bbox')
+    bbox = None
+    if isinstance(raw_bbox, dict):
+        try:
+            bbox = {
+                'x': float(raw_bbox['x']),
+                'y': float(raw_bbox['y']),
+                'w': float(raw_bbox['w']),
+                'h': float(raw_bbox['h']),
+            }
+        except (KeyError, TypeError, ValueError):
+            bbox = None
+
     return {
         'type': d.get('type', 'other'),
         'location': d.get('location', ''),
@@ -319,6 +342,7 @@ def normalize_damage(d: dict) -> dict:
         'description': d.get('description', ''),
         'repair_method': method,
         'estimated_cost_rub': cost,
+        'bbox': bbox,
     }
 
 
