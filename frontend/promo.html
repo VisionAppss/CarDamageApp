@@ -575,13 +575,16 @@
         <a href="/" class="btn-primary">Попробовать бесплатно</a>
         <div class="fine">Без регистрации и привязки карты</div>
       </div>
-      <label for="upl-cta" class="dropzone" id="dz2" style="margin:0;padding:40px">
-        <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
-        <div class="dz-title" id="dzTitle2">Перетащи фото сюда</div>
-        <div class="dz-sub">или нажми для загрузки</div>
-        <div class="dz-sub2">JPG, PNG до 10 МБ</div>
-        <input id="upl-cta" type="file" accept="image/*" style="display:none" onchange="onFile(event,2)">
-      </label>
+      <div class="dropzone" id="dz2" style="margin:0;padding:32px" onclick="dzClick(event)">
+        <div id="dz-default">
+          <div class="dz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+          <div class="dz-title">Перетащи фото сюда</div>
+          <div class="dz-sub">или нажмите для загрузки</div>
+          <div class="dz-sub2">JPG, PNG, WebP · до 10 МБ</div>
+        </div>
+        <div id="dz-preview" style="display:none"></div>
+        <input id="dz-input" type="file" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="onFile(event)">
+      </div>
     </div>
   </div>
 
@@ -615,12 +618,105 @@
   </div>
 
 <script>
-  function onFile(e, which){
+  // ── IndexedDB: сохранить файл для передачи на главную страницу ──
+  const IDB_NAME = 'carscan_promo_v1';
+  function savePromoFile(file) {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore('pending');
+      req.onsuccess = e => {
+        const db = e.target.result;
+        const tx = db.transaction('pending', 'readwrite');
+        tx.objectStore('pending').put(file, 'file');
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror   = () => { db.close(); reject(tx.error); };
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function esc(s) {
+    const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  }
+
+  let promoFile = null;
+
+  // Клик по зоне: открываем файл-пикер только в дефолтном состоянии
+  function dzClick(e) {
+    if (promoFile) return; // уже выбран файл — игнорируем клик по фону
+    document.getElementById('dz-input').click();
+  }
+
+  function onFile(e) {
     const f = e && e.target && e.target.files && e.target.files[0];
-    if(!f) return;
-    // Redirect to main app with file
+    if (!f) return;
+    promoFile = f;
+    showPreview(f);
+  }
+
+  function showPreview(file) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      document.getElementById('dz-default').style.display = 'none';
+      const preview = document.getElementById('dz-preview');
+      preview.style.display = '';
+      preview.innerHTML = `
+        <div style="position:relative;border-radius:12px;overflow:hidden;line-height:0;margin-bottom:14px">
+          <img src="${ev.target.result}"
+            style="width:100%;max-height:260px;object-fit:cover;border-radius:12px;display:block">
+          <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 55%,rgba(0,0,0,.5));border-radius:12px;pointer-events:none"></div>
+          <div style="position:absolute;bottom:10px;left:12px;right:12px;font-size:11.5px;
+            color:rgba(255,255,255,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${esc(file.name)}
+          </div>
+        </div>
+        <button class="btn-primary" id="dz-analyze-btn"
+          style="width:100%;text-align:center;font-size:15px"
+          onclick="goAnalyze(event)">
+          Анализировать повреждения →
+        </button>
+        <button onclick="resetDz(event)"
+          style="margin-top:10px;background:none;border:none;font-size:12.5px;
+          color:var(--muted2);cursor:pointer;display:block;width:100%;text-align:center">
+          ← Выбрать другое фото
+        </button>
+      `;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resetDz(e) {
+    if (e) e.stopPropagation();
+    promoFile = null;
+    document.getElementById('dz-default').style.display = '';
+    const preview = document.getElementById('dz-preview');
+    preview.style.display = 'none';
+    preview.innerHTML = '';
+    // сброс input чтобы можно было выбрать тот же файл повторно
+    document.getElementById('dz-input').value = '';
+  }
+
+  async function goAnalyze(e) {
+    if (e) e.stopPropagation();
+    const btn = document.getElementById('dz-analyze-btn');
+    if (btn) { btn.textContent = 'Загружаем…'; btn.disabled = true; }
+    try { await savePromoFile(promoFile); } catch(_) {}
     window.location.href = '/';
   }
+
+  // Drag-and-drop
+  document.addEventListener('DOMContentLoaded', () => {
+    const dz = document.getElementById('dz2');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = 'var(--red)'; dz.style.background = '#FCE1E3'; });
+    dz.addEventListener('dragleave', () => { dz.style.borderColor = ''; dz.style.background = ''; });
+    dz.addEventListener('drop', e => {
+      e.preventDefault();
+      dz.style.borderColor = '';
+      dz.style.background = '';
+      const f = e.dataTransfer && e.dataTransfer.files[0];
+      if (f) { promoFile = f; showPreview(f); }
+    });
+  });
 </script>
 </body>
 </html>

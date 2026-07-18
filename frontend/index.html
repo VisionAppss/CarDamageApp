@@ -3045,6 +3045,30 @@
     }
   }
 
+  // ── Promo → main: читаем файл из IndexedDB ──
+  function loadPromoFile() {
+    return new Promise(resolve => {
+      try {
+        const req = indexedDB.open('carscan_promo_v1', 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore('pending');
+        req.onsuccess = e => {
+          const db = e.target.result;
+          const tx = db.transaction('pending', 'readwrite');
+          const store = tx.objectStore('pending');
+          const get = store.get('file');
+          get.onsuccess = () => {
+            const file = get.result;
+            if (file) store.delete('file');
+            tx.oncomplete = () => { db.close(); resolve(file || null); };
+            tx.onerror   = () => { db.close(); resolve(null); };
+          };
+          get.onerror = () => { db.close(); resolve(null); };
+        };
+        req.onerror = () => resolve(null);
+      } catch(_) { resolve(null); }
+    });
+  }
+
   // ── Init ──
   document.addEventListener('DOMContentLoaded', () => {
     uploadZone    = document.getElementById('uploadZone');
@@ -3074,6 +3098,15 @@
     analyzeBtn.addEventListener('click', doAnalyze);
 
     initAuth();
+
+    // Если пришли с /promo с уже выбранным файлом — загружаем его
+    loadPromoFile().then(file => {
+      if (!file) return;
+      handleFiles([file]);
+      setTimeout(() => {
+        uploadZone && uploadZone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 400);
+    });
   });
 
   async function downloadPDF() {
