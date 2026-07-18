@@ -900,6 +900,70 @@
       display: block;
       background: #000;
     }
+    .dmg-pin {
+      position: absolute;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: #D6001C;
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 0 4px rgba(214,0,28,.22);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      font-family: -apple-system, sans-serif;
+    }
+    .dmg-photo-legend {
+      background: #18181b;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding: 16px 18px;
+    }
+    .dmg-photo-legend-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 12px;
+    }
+    .dmg-photo-legend-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.03);
+      margin-bottom: 6px;
+    }
+    .dmg-photo-legend-item:last-child { margin-bottom: 0; }
+    .dmg-photo-legend-idx {
+      width: 22px; height: 22px; flex: none;
+      border-radius: 50%;
+      background: #D6001C;
+      color: #fff;
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+    .dmg-photo-legend-name {
+      font-size: 13px; font-weight: 700;
+      color: rgba(255,255,255,0.9);
+      line-height: 1.3;
+    }
+    .dmg-photo-legend-meta {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .dmg-photo-legend-cost {
+      font-size: 12px; font-weight: 700;
+      color: rgba(255,255,255,0.55);
+    }
+    .dmg-photo-legend-acc {
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+    }
 
     .cabinet-overlay {
       display: none; position: fixed; inset: 0;
@@ -2485,33 +2549,48 @@
 
     if (photoSrc) {
       const allMarkerData = [];
-      damages.forEach(d => {
-        const color = TYPE_COLOR[d.type] || '#f59e0b';
+      damages.forEach((d, i) => {
         allMarkerData.push({
           p: { ...locMarker(d.location) },
-          color,
-          typeRu: damageLabel(d.type).toUpperCase(),
-          locRu: (d.location || '').toUpperCase(),
+          num: i + 1,
+          name: damageLabel(d.type),
+          loc: d.location || '',
+          cost: d.estimated_cost_rub,
+          conf: d.confidence_score != null ? d.confidence_score : null,
         });
       });
 
-      // de-overlap vertically
+      // de-overlap: push pins apart if too close
       allMarkerData.sort((a, b) => a.p.y - b.p.y);
-      const MIN_Y = 9;
+      const MIN_D = 10;
       for (let i = 1; i < allMarkerData.length; i++) {
         const prev = allMarkerData[i - 1];
         const curr = allMarkerData[i];
-        if (Math.abs(curr.p.x - prev.p.x) < 25 && curr.p.y - prev.p.y < MIN_Y) {
-          curr.p.y = Math.min(prev.p.y + MIN_Y, 88);
+        if (Math.abs(curr.p.x - prev.p.x) < 15 && curr.p.y - prev.p.y < MIN_D) {
+          curr.p.y = Math.min(prev.p.y + MIN_D, 88);
         }
       }
+      // restore original order for legend
+      allMarkerData.sort((a, b) => a.num - b.num);
 
-      let photoMarkers = '';
-      allMarkerData.forEach(({ p, color, typeRu, locRu }) => {
-        const t = `translate(-50%, ${p.up ? 'calc(-100% - 6px)' : '8px'})`;
-        photoMarkers += `<div class="dmg-marker" style="left:${p.x}%;top:${p.y}%;transform:${t}">
-          <span class="dmg-marker-dot" style="background:${color}"></span>
-          <span class="dmg-marker-label">${typeRu}&nbsp;·&nbsp;${esc(locRu)}</span>
+      let pins = '';
+      allMarkerData.forEach(({ p, num }) => {
+        pins += `<div class="dmg-pin" style="left:${p.x}%;top:${p.y}%">${num}</div>`;
+      });
+
+      let legendItems = '';
+      allMarkerData.forEach(({ num, name, loc, cost, conf }) => {
+        const costStr = cost ? fmtRange(cost.min, cost.max) : '';
+        const confStr = conf != null ? `точность ${conf}%` : '';
+        legendItems += `<div class="dmg-photo-legend-item">
+          <div class="dmg-photo-legend-idx">${num}</div>
+          <div style="flex:1">
+            <div class="dmg-photo-legend-name">${esc(name)}${loc ? ' · ' + esc(loc) : ''}</div>
+            ${(costStr || confStr) ? `<div class="dmg-photo-legend-meta">
+              ${costStr ? `<span class="dmg-photo-legend-cost">${esc(costStr)}</span>` : ''}
+              ${confStr ? `<span class="dmg-photo-legend-acc">${esc(confStr)}</span>` : ''}
+            </div>` : ''}
+          </div>
         </div>`;
       });
 
@@ -2519,8 +2598,12 @@
         ${headerHtml}
         <div class="dmg-diagram-stage photo-mode">
           <img class="dmg-photo" src="${photoSrc}" alt="Анализируемое фото">
-          <div class="dmg-markers">${photoMarkers}</div>
+          <div class="dmg-markers">${pins}</div>
         </div>
+        ${legendItems ? `<div class="dmg-photo-legend">
+          <div class="dmg-photo-legend-title">обнаружено дефектов: ${allMarkerData.length}</div>
+          ${legendItems}
+        </div>` : ''}
       </div>`;
     }
     // ── End photo mode ──────────────────────────────────────────────────────
