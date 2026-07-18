@@ -67,6 +67,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/repalash/gilroy-free-webfont@fonts/Gilroy-Extrabold.css" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -82,7 +83,7 @@
       --c-orange:  #f97316;
       --c-red:     #ef4444;
       --c-crimson: #7f1d1d;
-      --c-accent:  #FF5722;
+      --c-accent:  #D6001C;
     }
 
     html { font-size: 14px; }
@@ -116,11 +117,14 @@
       align-items: flex-end;
     }
     .logo {
-      font-size: 28px;
-      font-weight: 400;
-      letter-spacing: -2px;
+      font-size: 32px;
+      font-weight: 800;
+      font-family: 'Gilroy-Extrabold', -apple-system, sans-serif;
+      letter-spacing: -.02em;
       color: var(--black);
       line-height: 1;
+      display: inline-block;
+      transform: skewX(-7deg);
     }
     .logo span { color: var(--c-accent); }
     .tagline {
@@ -1287,6 +1291,42 @@
     }
     .feedback-error.visible { display: block; }
 
+    /* ── Скрипт для продавца ── */
+    .seller-script {
+      background: #fff8f8;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--c-accent);
+      padding: 18px 20px;
+      margin-bottom: 1px;
+    }
+    .seller-script-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--c-accent);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .seller-script-text {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: #333;
+      font-style: italic;
+      margin-bottom: 12px;
+    }
+    .seller-script-copy {
+      background: none;
+      border: 1px solid var(--border-strong);
+      padding: 6px 14px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--black);
+      transition: background .15s, color .15s;
+    }
+    .seller-script-copy:hover { background: var(--black); color: var(--white); }
+    .seller-script-copy.copied { background: #10b981; color: #fff; border-color: #10b981; }
+
     /* ── Баннер сохранения для гостей ── */
     .save-banner {
       display: none;
@@ -1378,7 +1418,7 @@
   <header class="header">
     <div class="header-inner">
       <div>
-        <div class="logo">АВТО<span>СКАН</span></div>
+        <div class="logo">Car<span>scan</span></div>
         <div class="tagline">Анализ повреждений по фотографии</div>
       </div>
       <div class="header-actions">
@@ -2120,6 +2160,24 @@
       </div>`;
     }
 
+    // Seller script
+    if (damages.length > 0) {
+      const topDmg = damages.slice(0, 3).map(d =>
+        damageLabel(d.type).toLowerCase() + ' (' + (d.location || '') + ')'
+      ).join(', ');
+      const tMin = summary.total_estimated_cost?.min;
+      const tMax = summary.total_estimated_cost?.max;
+      const discount = tMin ? Math.round(tMin * 1.35 / 500) * 500 : null;
+      const costPart = tMin ? `Ремонт выйдет в ${fmtRange(tMin, tMax)}. ` : '';
+      const discountPart = discount ? `Готов выйти на сделку при скидке ${fmt(discount)}.` : '';
+      const scriptText = `«Здравствуйте! Машина понравилась. По фото вижу ${topDmg}. ${costPart}${discountPart}»`;
+      html += `<div class="seller-script">
+        <div class="seller-script-label">Скрипт для переговоров с продавцом</div>
+        <div class="seller-script-text" id="sellerScriptText">${esc(scriptText)}</div>
+        <button class="seller-script-copy" onclick="copySellerScript(this)">Копировать</button>
+      </div>`;
+    }
+
     // Meta
     html += `<div class="meta-row">
       <span>${new Date(json.processed_at).toLocaleString('ru-RU')}</span>
@@ -2173,6 +2231,26 @@
     if (v === true)  return 'Да';
     if (v === false) return 'Нет';
     return 'Неизвестно';
+  }
+
+  function copySellerScript(btn) {
+    const el = document.getElementById('sellerScriptText');
+    if (!el) return;
+    navigator.clipboard.writeText(el.textContent).then(() => {
+      btn.textContent = 'Скопировано ✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Копировать'; btn.classList.remove('copied'); }, 2000);
+    }).catch(() => {
+      const r = document.createRange();
+      r.selectNode(el);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(r);
+      document.execCommand('copy');
+      window.getSelection().removeAllRanges();
+      btn.textContent = 'Скопировано ✓';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Копировать'; btn.classList.remove('copied'); }, 2000);
+    });
   }
 
   function showError(msg) {
