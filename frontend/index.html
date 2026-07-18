@@ -28,6 +28,7 @@
   <meta name="twitter:image" content="https://car-scan.ru/icons/og-image.png">
 
   <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg">
   <link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
@@ -62,7 +63,6 @@
     ]
   }
   </script>
-  <script src="/supabase.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -882,6 +882,21 @@
       text-transform: uppercase;
       font-family: 'Courier New', Courier, monospace;
     }
+
+    /* ── Photo overlay mode ── */
+    .dmg-diagram-stage.photo-mode {
+      padding-bottom: 0;
+    }
+    .dmg-diagram-stage.photo-mode .dmg-photo {
+      position: static;
+      width: 100%;
+      height: auto;
+      max-height: 520px;
+      object-fit: contain;
+      display: block;
+      background: #000;
+    }
+
     .cabinet-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.45); z-index: 100;
@@ -1549,11 +1564,9 @@
 </script>
 
 <script>
-  // ── Supabase ──
-  const SUPABASE_URL  = 'https://bxeyrsaovexzkzfdrxym.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4ZXlyc2FvdmV4emt6ZmRyeHltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MzY2MTIsImV4cCI6MjA5MDIxMjYxMn0.hvCuqm5iBwG0aaKjFc6QrIgQuWZt1PtuZoyv3jWEkj4';
-  let sb = null;
-  try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON); } catch(e) { console.warn('Supabase init failed:', e); }
+  // ── Session token ──
+  function getSessionToken() { try { return localStorage.getItem('ao_session'); } catch(e) { return null; } }
+  function sessionHeaders() { const t = getSessionToken(); return t ? { 'x-session-token': t } : {}; }
 
   let currentUser    = null;
   let currentProfile = null;
@@ -1596,38 +1609,35 @@
   // logout            → выход из аккаунта
   // page_view         → просмотр страницы (с user_id)
 
-  // ── Auth — гостевой режим: показываем страницу всем ──
+  // ── Auth ──
   async function initAuth() {
     document.body.style.visibility = 'visible';
-    const { data: { session } } = await sb.auth.getSession();
-
-    if (!session) {
-      // Гость — показываем страницу без userBar, анализ доступен
+    const token = getSessionToken();
+    if (!token) {
       await checkPaymentReturn();
       track('page_view');
       return;
     }
 
-    currentUser = session.user;
-
-    // Создаём/получаем профиль через наш бэкенд
-    await fetch('/api/profile', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: currentUser.id, email: currentUser.email })
-    });
-    const profileRes = await fetch('/api/profile/' + currentUser.id);
-    currentProfile = profileRes.ok ? await profileRes.json() : null;
-
-    // Фиксируем согласие в БД и localStorage
-    if (currentProfile) {
-      localStorage.setItem('ao_consent_' + currentUser.email, '1');
-      if (!currentProfile.consent_given) {
-        fetch('/api/profile/' + currentUser.id + '/consent', { method: 'POST' });
+    try {
+      const res = await fetch('/api/auth/me', { headers: { 'x-session-token': token } });
+      const data = res.ok ? await res.json() : { user: null };
+      if (!data.user) {
+        // Сессия протухла — чистим
+        try { localStorage.removeItem('ao_session'); } catch(e) {}
+        await checkPaymentReturn();
+        track('page_view');
+        return;
       }
+      currentUser    = data.user;
+      currentProfile = data.user;
+    } catch(e) {
+      await checkPaymentReturn();
+      track('page_view');
+      return;
     }
 
-    // Show user bar
+    // Показываем userBar
     document.getElementById('userBar').classList.add('visible');
     const guestBar = document.getElementById('guestBar');
     if (guestBar) guestBar.style.display = 'none';
@@ -1636,14 +1646,8 @@
     document.getElementById('userEmail').textContent = currentUser.email;
     updateAnalysesBadge();
 
-    // Восстанавливаем и сохраняем анализ, сделанный до входа
     await claimPendingAnalysis();
-
-    // Проверяем возврат после оплаты
     await checkPaymentReturn();
-
-    // Paywall показывается on-demand — перед анализом или перед PDF
-
     track('page_view');
   }
 
@@ -1680,9 +1684,12 @@
   }
 
   async function handleLogout() {
-    if (!currentUser) { window.location.href = '/auth.html'; return; }
     track('logout');
-    await sb.auth.signOut();
+    const token = getSessionToken();
+    if (token) {
+      fetch('/api/auth/logout', { method: 'POST', headers: { 'x-session-token': token } }).catch(() => {});
+      try { localStorage.removeItem('ao_session'); } catch(e) {}
+    }
     window.location.href = '/auth.html';
   }
 
@@ -1954,7 +1961,7 @@
       const res = await fetch('/api/analyze', {
         method: 'POST',
         body: fd,
-        headers: currentUser ? { 'x-user-id': currentUser.id } : {}
+        headers: sessionHeaders()
       });
       clearInterval(timer);
 
@@ -2392,6 +2399,53 @@
       <div>${fname ? 'IMG&nbsp;·&nbsp;' + esc(fname) : 'СХЕМА&nbsp;·&nbsp;ПОВРЕЖДЕНИЯ'}</div>
       <div class="dmg-analyzed-badge">ANALYZED&nbsp;·&nbsp;${secs}</div>
     </div>`;
+
+    // ── Photo overlay mode ──────────────────────────────────────────────────
+    const mainImgEl = document.querySelector('.multi-preview-main img');
+    const photoSrc = (mainImgEl && mainImgEl.src && mainImgEl.src.startsWith('data:'))
+      ? mainImgEl.src : null;
+
+    if (photoSrc) {
+      const allMarkerData = [];
+      damages.forEach(d => {
+        const color = TYPE_COLOR[d.type] || '#f59e0b';
+        allMarkerData.push({
+          p: { ...locMarker(d.location) },
+          color,
+          typeRu: damageLabel(d.type).toUpperCase(),
+          locRu: (d.location || '').toUpperCase(),
+        });
+      });
+
+      // de-overlap vertically
+      allMarkerData.sort((a, b) => a.p.y - b.p.y);
+      const MIN_Y = 9;
+      for (let i = 1; i < allMarkerData.length; i++) {
+        const prev = allMarkerData[i - 1];
+        const curr = allMarkerData[i];
+        if (Math.abs(curr.p.x - prev.p.x) < 25 && curr.p.y - prev.p.y < MIN_Y) {
+          curr.p.y = Math.min(prev.p.y + MIN_Y, 88);
+        }
+      }
+
+      let photoMarkers = '';
+      allMarkerData.forEach(({ p, color, typeRu, locRu }) => {
+        const t = `translate(-50%, ${p.up ? 'calc(-100% - 6px)' : '8px'})`;
+        photoMarkers += `<div class="dmg-marker" style="left:${p.x}%;top:${p.y}%;transform:${t}">
+          <span class="dmg-marker-dot" style="background:${color}"></span>
+          <span class="dmg-marker-label">${typeRu}&nbsp;·&nbsp;${esc(locRu)}</span>
+        </div>`;
+      });
+
+      return `<div class="dmg-diagram">
+        ${headerHtml}
+        <div class="dmg-diagram-stage photo-mode">
+          <img class="dmg-photo" src="${photoSrc}" alt="Анализируемое фото">
+          <div class="dmg-markers">${photoMarkers}</div>
+        </div>
+      </div>`;
+    }
+    // ── End photo mode ──────────────────────────────────────────────────────
 
     if (!multiView) {
       // Single view
@@ -2992,6 +3046,30 @@
     }
   }
 
+  // ── Promo → main: читаем файл из IndexedDB ──
+  function loadPromoFile() {
+    return new Promise(resolve => {
+      try {
+        const req = indexedDB.open('carscan_promo_v1', 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore('pending');
+        req.onsuccess = e => {
+          const db = e.target.result;
+          const tx = db.transaction('pending', 'readwrite');
+          const store = tx.objectStore('pending');
+          const get = store.get('file');
+          get.onsuccess = () => {
+            const file = get.result;
+            if (file) store.delete('file');
+            tx.oncomplete = () => { db.close(); resolve(file || null); };
+            tx.onerror   = () => { db.close(); resolve(null); };
+          };
+          get.onerror = () => { db.close(); resolve(null); };
+        };
+        req.onerror = () => resolve(null);
+      } catch(_) { resolve(null); }
+    });
+  }
+
   // ── Init ──
   document.addEventListener('DOMContentLoaded', () => {
     uploadZone    = document.getElementById('uploadZone');
@@ -3021,6 +3099,15 @@
     analyzeBtn.addEventListener('click', doAnalyze);
 
     initAuth();
+
+    // Если пришли с /promo с уже выбранным файлом — загружаем его
+    loadPromoFile().then(file => {
+      if (!file) return;
+      handleFiles([file]);
+      setTimeout(() => {
+        uploadZone && uploadZone.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 400);
+    });
   });
 
   async function downloadPDF() {

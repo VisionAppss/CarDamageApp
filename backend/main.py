@@ -8,14 +8,19 @@ import base64
 import json
 import os
 import uuid
+import secrets
+import random
 import configparser
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Literal
 
 import httpx
 import openai
 import asyncpg
+import aiosmtplib
 from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -38,8 +43,12 @@ YANDEX_API_KEY = config.get('yandex', 'api_key')
 YANDEX_FOLDER  = config.get('yandex', 'folder_id')
 YANDEX_MODEL   = config.get('yandex', 'model', fallback='qwen3.6-35b-a3b/latest')
 
-# Supabase JWT secret для верификации токенов
-SUPABASE_JWT_SECRET = config.get('supabase', 'jwt_secret', fallback='')
+# SMTP для OTP-авторизации
+SMTP_HOST = config.get('smtp', 'host',     fallback='smtp.yandex.ru')
+SMTP_PORT = int(config.get('smtp', 'port', fallback='465'))
+SMTP_USER = config.get('smtp', 'user',     fallback='') or os.getenv('SMTP_USER', '')
+SMTP_PASS = config.get('smtp', 'password', fallback='') or os.getenv('SMTP_PASSWORD', '')
+SMTP_FROM = config.get('smtp', 'from',     fallback=SMTP_USER)
 
 UPLOAD_DIR = Path(os.getenv('UPLOAD_DIR', '/app/uploads'))
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -147,6 +156,13 @@ class PaymentCreateRequest(BaseModel):
     user_id: Optional[str] = None
     type: str = "pdf"
     customer_email: Optional[str] = None
+
+class SendCodeRequest(BaseModel):
+    email: str
+
+class VerifyCodeRequest(BaseModel):
+    email: str
+    code: str
 
 # === ПРОМПТЫ ===
 
@@ -338,11 +354,122 @@ def normalize_result(data: dict) -> dict:
     }
 
 
+# === AUTH ХЕЛПЕРЫ ===
+
+async def send_otp_email(to_email: str, code: str):
+    if not SMTP_USER or not SMTP_PASS:
+        return  # SMTP не настроен — код виден только в логах
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = f"{code} — код входа в АвтоСкан"
+    msg["From"]    = f"АвтоСкан <{SMTP_FROM}>"
+    msg["To"]      = to_email
+    html = f"""<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 16px">
+  <div style="font-size:22px;font-weight:400;letter-spacing:-1px;margin-bottom:8px">
+    АВТО<span style="color:#FF5722">СКАН</span>
+  </div>
+  <p style="color:#888;font-size:13px;margin-bottom:32px">Анализ повреждений автомобиля</p>
+  <p style="font-size:15px;margin-bottom:16px">Ваш код для входа:</p>
+  <div style="font-size:36px;font-weight:600;letter-spacing:8px;background:#f5f5f5;padding:20px 24px;display:inline-block;margin-bottom:16px">{code}</div>
+  <p style="font-size:13px;color:#888">Код действителен 10 минут.<br>Если вы не запрашивали код — просто проигнорируйте это письмо.</p>
+</div>"""
+    msg.attach(MIMEText(html, "html"))
+    try:
+        await aiosmtplib.send(msg, hostname=SMTP_HOST, port=SMTP_PORT,
+                              username=SMTP_USER, password=SMTP_PASS, use_tls=True)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ошибка отправки письма: {e}")
+
+
+async def resolve_session(token: Optional[str], pool) -> Optional[dict]:
+    if not token:
+        return None
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """SELECT s.user_id, p.email, p.created_at
+               FROM sessions s JOIN profiles p ON s.user_id = p.id
+               WHERE s.token = $1 AND s.expires_at > NOW()""",
+            token
+        )
+        if not row:
+            return None
+        await conn.execute("UPDATE sessions SET last_used = NOW() WHERE token = $1", token)
+    return {"id": row["user_id"], "email": row["email"],
+            "created_at": row["created_at"].isoformat()}
+
+
 # === ЭНДПОИНТЫ ===
 
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "3.0.0", "timestamp": datetime.now().isoformat()}
+
+
+@app.post("/auth/send-code")
+async def auth_send_code(data: SendCodeRequest):
+    email = data.email.lower().strip()
+    async with app.state.pool.acquire() as conn:
+        recent = await conn.fetchrow(
+            "SELECT created_at FROM auth_codes WHERE email=$1 AND created_at > NOW()-INTERVAL '60 seconds' LIMIT 1",
+            email
+        )
+        if recent:
+            raise HTTPException(status_code=429, detail="Подождите минуту перед повторной отправкой")
+        code = str(random.randint(100000, 999999))
+        expires_at = datetime.now() + timedelta(minutes=10)
+        await conn.execute(
+            "INSERT INTO auth_codes (email, code, expires_at) VALUES ($1, $2, $3)",
+            email, code, expires_at
+        )
+    await send_otp_email(email, code)
+    return {"ok": True}
+
+
+@app.post("/auth/verify-code")
+async def auth_verify_code(data: VerifyCodeRequest):
+    email = data.email.lower().strip()
+    async with app.state.pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id FROM auth_codes WHERE email=$1 AND code=$2 AND expires_at>NOW() AND used=FALSE ORDER BY created_at DESC LIMIT 1",
+            email, data.code.strip()
+        )
+        if not row:
+            raise HTTPException(status_code=400, detail="Неверный или устаревший код")
+        await conn.execute("UPDATE auth_codes SET used=TRUE WHERE id=$1", row["id"])
+        profile = await conn.fetchrow("SELECT id FROM profiles WHERE email=$1", email)
+        if not profile:
+            user_id = str(uuid.uuid4())
+            await conn.execute(
+                "INSERT INTO profiles (id, email, consent_given) VALUES ($1, $2, TRUE)",
+                user_id, email
+            )
+        else:
+            user_id = profile["id"]
+            await conn.execute("UPDATE profiles SET consent_given=TRUE WHERE id=$1", user_id)
+        token = secrets.token_hex(32)
+        expires_at = datetime.now() + timedelta(days=30)
+        await conn.execute(
+            "INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3)",
+            token, user_id, expires_at
+        )
+    return {"token": token, "user_id": user_id, "email": email}
+
+
+@app.get("/auth/me")
+async def auth_me(x_session_token: Optional[str] = Header(None)):
+    user = await resolve_session(x_session_token, app.state.pool)
+    if not user:
+        return {"user": None}
+    async with app.state.pool.acquire() as conn:
+        profile = await conn.fetchrow("SELECT * FROM profiles WHERE id=$1", user["id"])
+    return {"user": {**user, **(dict(profile) if profile else {})}}
+
+
+@app.post("/auth/logout")
+async def auth_logout(x_session_token: Optional[str] = Header(None)):
+    if x_session_token:
+        async with app.state.pool.acquire() as conn:
+            await conn.execute("DELETE FROM sessions WHERE token=$1", x_session_token)
+    return {"ok": True}
 
 
 @app.post("/profile")
@@ -451,18 +578,10 @@ async def submit_feedback(data: FeedbackData):
 async def analyze_image(
     file: UploadFile = File(...),
     inspection_type: str = Form(default="страховой случай"),
-    x_user_id: Optional[str] = Header(None),
+    x_session_token: Optional[str] = Header(None),
 ):
-    """Анализ фото. x-user-id — ID пользователя из Supabase Auth."""
-
-    # Гостевой режим: без x_user_id — анализ делается, но не сохраняется в БД
-    # Авторизованный: проверяем лимит и сохраняем результат
-    if x_user_id:
-        async with app.state.pool.acquire() as conn:
-            profile = await conn.fetchrow(
-                "SELECT email FROM profiles WHERE id = $1",
-                x_user_id
-            )
+    """Анализ фото. Гость — без токена, авторизованный — с x-session-token."""
+    current_user = await resolve_session(x_session_token, app.state.pool)
 
     # Валидация файла
     allowed_types = ['image/jpeg', 'image/png', 'image/webp']
@@ -536,17 +655,17 @@ async def analyze_image(
         }
 
         # Сохраняем анализ и обновляем счётчик
-        if x_user_id:
+        if current_user:
             async with app.state.pool.acquire() as conn:
                 await conn.execute("""
                     INSERT INTO analyses (user_id, result, photo_name, inspection_type, photo_data, photo_mime)
                     VALUES ($1, $2, $3, $4, $5, $6)
-                """, x_user_id, json.dumps(result), file.filename, inspection_type,
+                """, current_user["id"], json.dumps(result), file.filename, inspection_type,
                      base64_image, file.content_type)
-
-                await conn.execute("""
-                    UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1
-                """, x_user_id)
+                await conn.execute(
+                    "UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1",
+                    current_user["id"]
+                )
 
         return JSONResponse(result)
 

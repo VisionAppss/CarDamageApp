@@ -8,11 +8,12 @@ COPY index.html /usr/share/nginx/html/
 RUN chmod 644 /usr/share/nginx/html/index.html
 COPY auth.html /usr/share/nginx/html/
 RUN chmod 644 /usr/share/nginx/html/auth.html
-COPY supabase.js /usr/share/nginx/html/
-RUN chmod 644 /usr/share/nginx/html/supabase.js
+COPY promo.html /usr/share/nginx/html/
+RUN chmod 644 /usr/share/nginx/html/promo.html
 
 # Копируем конфиг nginx
 COPY icons/ /usr/share/nginx/html/icons/
+COPY img/ /usr/share/nginx/html/img/
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 COPY robots.txt /usr/share/nginx/html/

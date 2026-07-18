@@ -52,6 +52,27 @@ CREATE TABLE IF NOT EXISTS payments (
 
 CREATE INDEX IF NOT EXISTS payments_user_id_idx ON payments(user_id);
 
+-- OTP-коды для входа
+CREATE TABLE IF NOT EXISTS auth_codes (
+  id         BIGSERIAL PRIMARY KEY,
+  email      TEXT NOT NULL,
+  code       TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used       BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS auth_codes_email_idx ON auth_codes(email, expires_at);
+
+-- Сессии пользователей
+CREATE TABLE IF NOT EXISTS sessions (
+  token      TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  last_used  TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions(user_id);
+
 -- Миграции для существующих БД (игнорируют ошибки если колонка уже есть)
 DO $$ BEGIN
   ALTER TABLE profiles ADD COLUMN IF NOT EXISTS consent_given BOOLEAN DEFAULT FALSE;
