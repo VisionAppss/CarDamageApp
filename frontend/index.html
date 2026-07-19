@@ -900,19 +900,29 @@
       display: block;
       background: #000;
     }
-    .dmg-pin {
+    .dmg-zone {
       position: absolute;
-      width: 26px; height: 26px;
+      border: 1.5px solid rgba(214,0,28,0.75);
+      background: rgba(214,0,28,0.10);
+      border-radius: 5px;
+      pointer-events: none;
+      animation: zone-in 0.35s ease both;
+    }
+    .dmg-zone-num {
+      position: absolute;
+      top: -12px; left: -12px;
+      width: 22px; height: 22px;
       border-radius: 50%;
       background: #D6001C;
       color: #fff;
-      font-weight: 700;
-      font-size: 12px;
+      font-size: 11px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 0 4px rgba(214,0,28,.22);
-      transform: translate(-50%, -50%);
-      pointer-events: none;
       font-family: -apple-system, sans-serif;
+      box-shadow: 0 0 0 3px rgba(214,0,28,.2);
+    }
+    @keyframes zone-in {
+      from { opacity: 0; transform: scale(0.88); }
+      to   { opacity: 1; transform: scale(1); }
     }
     .dmg-photo-legend {
       background: #18181b;
@@ -2231,10 +2241,11 @@
       ).join(', ');
       const tMin = summary.total_estimated_cost?.min;
       const tMax = summary.total_estimated_cost?.max;
-      const discount = tMin ? Math.round(tMin * 1.35 / 500) * 500 : null;
-      const costPart = tMin ? `Ремонт выйдет в ${fmtRange(tMin, tMax)}. ` : '';
-      const discountPart = discount ? `Готов выйти на сделку при скидке ${fmt(discount)}.` : '';
-      const scriptText = `«Здравствуйте! Машина понравилась. По фото вижу ${topDmg}. ${costPart}${discountPart}»`;
+      const discount = tMin ? Math.round(tMin / 500) * 500 : null;
+      const costPart = tMin ? `ремонт выйдет в ${fmtRange(tMin, tMax)}` : '';
+      const discountPart = discount ? `прошу скидку ${fmt(discount)}` : '';
+      const parts = [costPart, discountPart].filter(Boolean);
+      const scriptText = `«Здравствуйте! Машина понравилась. По фото вижу ${topDmg}${parts.length ? ' — ' + parts.join(', ') : ''}. Готовы договориться?»`;
       html += `<div class="seller-script">
         <div class="seller-script-label">Скрипт для переговоров с продавцом</div>
         <div class="seller-script-text" id="sellerScriptText">${esc(scriptText)}</div>
@@ -2548,45 +2559,48 @@
       ? mainImgEl.src : null;
 
     if (photoSrc) {
-      const allMarkerData = [];
-      damages.forEach((d, i) => {
-        let p;
-        if (d.bbox && typeof d.bbox.x === 'number') {
-          // use center of bbox returned by AI
-          p = { x: d.bbox.x + d.bbox.w / 2, y: d.bbox.y + d.bbox.h / 2 };
-        } else {
-          p = { ...locMarker(d.location) };
-        }
-        allMarkerData.push({
-          p,
-          num: i + 1,
-          name: damageLabel(d.type),
-          loc: d.location || '',
-          cost: d.estimated_cost_rub,
-          conf: d.confidence_score != null ? d.confidence_score : null,
-        });
-      });
-
-      // de-overlap: push pins apart if too close
-      allMarkerData.sort((a, b) => a.p.y - b.p.y);
-      const MIN_D = 10;
-      for (let i = 1; i < allMarkerData.length; i++) {
-        const prev = allMarkerData[i - 1];
-        const curr = allMarkerData[i];
-        if (Math.abs(curr.p.x - prev.p.x) < 15 && curr.p.y - prev.p.y < MIN_D) {
-          curr.p.y = Math.min(prev.p.y + MIN_D, 88);
-        }
+      function locZonePhoto(loc) {
+        const s = (loc || '').toLowerCase();
+        const right = /\bправ/.test(s);
+        if (s.includes('передн') && s.includes('бамп')) return { x: 4,  y: 58, w: 28, h: 26 };
+        if (s.includes('капот'))                         return { x: 18, y: 14, w: 46, h: 36 };
+        if (s.includes('лобов') || (s.includes('перед') && s.includes('стекл')))
+                                                         return { x: 40, y: 8,  w: 28, h: 30 };
+        if (s.includes('передн') && s.includes('крыл'))  return right ? { x: 52, y: 36, w: 22, h: 32 } : { x: 6,  y: 40, w: 22, h: 32 };
+        if (s.includes('передн') && s.includes('дверь')) return right ? { x: 54, y: 26, w: 20, h: 40 } : { x: 30, y: 26, w: 20, h: 40 };
+        if ((s.includes('средн') || s.includes('цент')) && s.includes('дверь'))
+                                                         return right ? { x: 64, y: 24, w: 18, h: 42 } : { x: 48, y: 24, w: 18, h: 42 };
+        if (s.includes('задн') && s.includes('дверь'))   return right ? { x: 66, y: 24, w: 18, h: 42 } : { x: 50, y: 26, w: 18, h: 40 };
+        if (s.includes('крыш'))                          return { x: 36, y: 6,  w: 36, h: 22 };
+        if (s.includes('задн') && s.includes('крыл'))    return right ? { x: 74, y: 38, w: 20, h: 30 } : { x: 68, y: 40, w: 20, h: 28 };
+        if (s.includes('задн') && s.includes('стекл'))   return { x: 62, y: 8,  w: 24, h: 28 };
+        if (s.includes('багаж') || s.includes('крышк'))  return { x: 70, y: 28, w: 24, h: 34 };
+        if (s.includes('задн') && s.includes('бамп'))    return { x: 74, y: 56, w: 22, h: 26 };
+        if (s.includes('порог') || s.includes('рокер'))  return { x: 16, y: 66, w: 56, h: 14 };
+        if (s.includes('зеркал'))                        return { x: 36, y: 26, w: 11, h: 14 };
+        return { x: 25, y: 25, w: 50, h: 50 };
       }
-      // restore original order for legend
-      allMarkerData.sort((a, b) => a.num - b.num);
 
-      let pins = '';
-      allMarkerData.forEach(({ p, num }) => {
-        pins += `<div class="dmg-pin" style="left:${p.x}%;top:${p.y}%">${num}</div>`;
+      const allZoneData = damages.map((d, i) => ({
+        zone: (d.bbox && typeof d.bbox.x === 'number')
+          ? { x: d.bbox.x, y: d.bbox.y, w: d.bbox.w, h: d.bbox.h }
+          : locZonePhoto(d.location),
+        num: i + 1,
+        name: damageLabel(d.type),
+        loc: d.location || '',
+        cost: d.estimated_cost_rub,
+        conf: d.confidence_score != null ? d.confidence_score : null,
+      }));
+
+      let zones = '';
+      allZoneData.forEach(({ zone, num }, i) => {
+        zones += `<div class="dmg-zone" style="left:${zone.x}%;top:${zone.y}%;width:${zone.w}%;height:${zone.h}%;animation-delay:${i * 0.12}s">
+          <div class="dmg-zone-num">${num}</div>
+        </div>`;
       });
 
       let legendItems = '';
-      allMarkerData.forEach(({ num, name, loc, cost, conf }) => {
+      allZoneData.forEach(({ num, name, loc, cost, conf }) => {
         const costStr = cost ? fmtRange(cost.min, cost.max) : '';
         const confStr = conf != null ? `точность ${conf}%` : '';
         legendItems += `<div class="dmg-photo-legend-item">
@@ -2605,10 +2619,10 @@
         ${headerHtml}
         <div class="dmg-diagram-stage photo-mode">
           <img class="dmg-photo" src="${photoSrc}" alt="Анализируемое фото">
-          <div class="dmg-markers">${pins}</div>
+          <div class="dmg-markers">${zones}</div>
         </div>
         ${legendItems ? `<div class="dmg-photo-legend">
-          <div class="dmg-photo-legend-title">обнаружено дефектов: ${allMarkerData.length}</div>
+          <div class="dmg-photo-legend-title">обнаружено дефектов: ${allZoneData.length}</div>
           ${legendItems}
         </div>` : ''}
       </div>`;
