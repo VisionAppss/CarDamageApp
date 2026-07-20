@@ -384,12 +384,12 @@ async def send_otp_email(to_email: str, code: str):
     if not SMTP_USER or not SMTP_PASS:
         return  # SMTP не настроен — код виден только в логах
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"{code} — код входа в АвтоСкан"
+    msg["Subject"] = f"{code} — код входа в Carscan"
     msg["From"]    = f"АвтоСкан <{SMTP_FROM}>"
     msg["To"]      = to_email
     html = f"""<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 16px">
   <div style="font-size:22px;font-weight:400;letter-spacing:-1px;margin-bottom:8px">
-    АВТО<span style="color:#FF5722">СКАН</span>
+    CAR<span style="color:#FF5722">SCAN</span>
   </div>
   <p style="color:#888;font-size:13px;margin-bottom:32px">Анализ повреждений автомобиля</p>
   <p style="font-size:15px;margin-bottom:16px">Ваш код для входа:</p>
