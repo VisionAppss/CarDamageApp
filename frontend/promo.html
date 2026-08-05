@@ -267,6 +267,55 @@
   .cta-grid p{font-size:15.5px;color:var(--muted);line-height:1.6;margin-bottom:26px}
   .cta-grid .fine{font-size:12.5px;color:var(--muted2);margin-top:16px}
 
+  /* ── Before / After slider ── */
+  .ba-section { background: var(--ink); padding: 80px 40px; }
+  .ba-section .section-head h2 { color: #fff; }
+  .ba-section .section-head p  { color: #8C8C93; }
+  .ba-wrap { max-width: 820px; margin: 0 auto; }
+  .ba-slider {
+    position: relative; overflow: hidden;
+    border-radius: 16px; cursor: ew-resize;
+    user-select: none; -webkit-user-select: none;
+    aspect-ratio: 4/3;
+    box-shadow: 0 24px 64px rgba(0,0,0,.55);
+  }
+  .ba-img {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
+  .ba-before-wrap {
+    position: absolute; inset: 0;
+    overflow: hidden;
+    width: 50%;
+  }
+  .ba-before-wrap .ba-img { width: auto; min-width: 100%; max-width: none; }
+  .ba-handle {
+    position: absolute; top: 0; bottom: 0;
+    left: 50%; transform: translateX(-50%);
+    width: 3px; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .ba-handle-btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.4);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    pointer-events: none;
+  }
+  .ba-handle-btn svg { width: 20px; height: 20px; }
+  .ba-label {
+    position: absolute; top: 16px;
+    background: rgba(0,0,0,.62); color: #fff;
+    font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; padding: 5px 12px; border-radius: 20px;
+    pointer-events: none;
+  }
+  .ba-label-before { left: 16px; }
+  .ba-label-after  { right: 16px; }
+  .ba-hint { text-align: center; margin-top: 14px; font-size: 13px; color: #555; }
+
   /* footer */
   .footer{background:var(--ink);color:#B9B9BF;padding:64px 40px 28px}
   .footer-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr;gap:30px;max-width:1200px;margin:0 auto}
@@ -369,6 +418,35 @@
         <h3>4. Сохрани отчёт</h3>
         <p>Скачай отчёт или используй готовый скрипт для разговора с продавцом.</p>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== BEFORE / AFTER ===== -->
+  <div class="ba-section">
+    <div class="section-head" style="text-align:center;max-width:600px;margin:0 auto 40px">
+      <h2 style="color:#fff">ИИ видит то, что скрыто от глаз</h2>
+      <p style="color:#8C8C93;margin-top:12px">Перетащите разделитель — сравните фото до и после анализа</p>
+    </div>
+    <div class="ba-wrap">
+      <div class="ba-slider" id="baSlider">
+        <!-- ПОСЛЕ (задний слой — полное фото с зонами) -->
+        <img class="ba-img" src="img/demo-after.jpg" alt="После анализа">
+        <!-- ДО (верхний слой — чистое фото, обрезается) -->
+        <div class="ba-before-wrap" id="baBefore">
+          <img class="ba-img" src="img/demo-before.jpg" alt="До анализа">
+        </div>
+        <!-- Разделитель -->
+        <div class="ba-handle" id="baHandle">
+          <div class="ba-handle-btn">
+            <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7 4L3 10L7 16M13 4L17 10L13 16" stroke="#111" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <span class="ba-label ba-label-before">До</span>
+        <span class="ba-label ba-label-after">После</span>
+      </div>
+      <p class="ba-hint">← Тяните для сравнения →</p>
     </div>
   </div>
 
@@ -727,6 +805,32 @@
       if (f) { promoFile = f; showPreview(f); }
     });
   });
+
+  // ── Before/After slider ──
+  (function() {
+    const slider = document.getElementById('baSlider');
+    const before = document.getElementById('baBefore');
+    const handle = document.getElementById('baHandle');
+    if (!slider) return;
+
+    let dragging = false;
+
+    function setPos(clientX) {
+      const rect = slider.getBoundingClientRect();
+      let pct = (clientX - rect.left) / rect.width * 100;
+      pct = Math.max(2, Math.min(98, pct));
+      before.style.width = pct + '%';
+      handle.style.left  = pct + '%';
+    }
+
+    slider.addEventListener('mousedown',  e => { dragging = true; setPos(e.clientX); });
+    window.addEventListener('mousemove',  e => { if (dragging) setPos(e.clientX); });
+    window.addEventListener('mouseup',    ()  => { dragging = false; });
+
+    slider.addEventListener('touchstart', e => { dragging = true; setPos(e.touches[0].clientX); }, { passive: true });
+    window.addEventListener('touchmove',  e => { if (dragging) setPos(e.touches[0].clientX); }, { passive: true });
+    window.addEventListener('touchend',   ()  => { dragging = false; });
+  })();
 </script>
 </body>
 </html>
