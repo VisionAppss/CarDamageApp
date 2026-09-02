@@ -1,2 +1,4 @@
 uploads/
 backend/config.ini
+__pycache__/
+*.pyc
