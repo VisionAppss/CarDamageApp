@@ -665,68 +665,55 @@ async def analyze_image(
         except openai.APITimeoutError:
             raise HTTPException(status_code=504, detail="Нейросеть не ответила вовремя, попробуйте ещё раз")
     if response is None:
-        raise HTTPException(status_code=502, detail=f"Нейросеть недоступна (нет соединения). Попробуйте позже.")
-
-        finish_reason = response.choices[0].finish_reason if response.choices else None
-        raw = response.choices[0].message.content if response.choices else None
-        if not raw:
-            detail = "Модель вернула пустой ответ"
-            if finish_reason == "length":
-                detail = "Модель вернула пустой ответ (превышен лимит токенов)"
-            raise HTTPException(status_code=502, detail=detail)
-        cleaned = clean_json(raw)
-
-        try:
-            parsed = json.loads(cleaned)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=502, detail=f"Невалидный JSON от модели: {raw[:200]}")
-
-        if parsed.get("error") == "no_vehicle":
-            raise HTTPException(status_code=422, detail=parsed.get("message", "На фото не обнаружено транспортное средство"))
-
-        # Нормализуем ответ Gemma в нашу схему
-        parsed = normalize_result(parsed)
-
-        try:
-            validated = AnalysisResult(**parsed)
-            result_data = validated.model_dump()
-        except Exception:
-            result_data = parsed
-
-        result = {
-            "success": True,
-            "data": result_data,
-            "model_used": YANDEX_MODEL,
-            "tokens_used": response.usage.total_tokens if response.usage else None,
-            "processed_at": datetime.now().isoformat(),
-            "filename": filename
-        }
-
-        # Сохраняем анализ и обновляем счётчик
-        if current_user:
-            async with app.state.pool.acquire() as conn:
-                await conn.execute("""
-                    INSERT INTO analyses (user_id, result, photo_name, inspection_type, photo_data, photo_mime)
-                    VALUES ($1, $2, $3, $4, $5, $6)
-                """, current_user["id"], json.dumps(result), file.filename, inspection_type,
-                     base64_image, file.content_type)
-                await conn.execute(
-                    "UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1",
-                    current_user["id"]
-                )
-
-        return JSONResponse(result)
-
-    except HTTPException:
-        raise
-    except openai.APIConnectionError as e:
-        if file_path.exists():
-            file_path.unlink()
         raise HTTPException(status_code=502, detail="Нейросеть недоступна (нет соединения). Попробуйте позже.")
-    except Exception as e:
-        if file_path.exists():
-            file_path.unlink()
-        raise HTTPException(status_code=502, detail=f"Ошибка нейросети: {type(e).__name__}: {str(e)}")
+
+    finish_reason = response.choices[0].finish_reason if response.choices else None
+    raw = response.choices[0].message.content if response.choices else None
+    if not raw:
+        detail = "Модель вернула пустой ответ"
+        if finish_reason == "length":
+            detail = "Модель вернула пустой ответ (превышен лимит токенов)"
+        raise HTTPException(status_code=502, detail=detail)
+    cleaned = clean_json(raw)
+
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail=f"Невалидный JSON от модели: {raw[:200]}")
+
+    if parsed.get("error") == "no_vehicle":
+        raise HTTPException(status_code=422, detail=parsed.get("message", "На фото не обнаружено транспортное средство"))
+
+    parsed = normalize_result(parsed)
+
+    try:
+        validated = AnalysisResult(**parsed)
+        result_data = validated.model_dump()
+    except Exception:
+        result_data = parsed
+
+    result = {
+        "success": True,
+        "data": result_data,
+        "model_used": YANDEX_MODEL,
+        "tokens_used": response.usage.total_tokens if response.usage else None,
+        "processed_at": datetime.now().isoformat(),
+        "filename": filename
+    }
+
+    if current_user:
+        async with app.state.pool.acquire() as conn:
+            await conn.execute("""
+                INSERT INTO analyses (user_id, result, photo_name, inspection_type, photo_data, photo_mime)
+                VALUES ($1, $2, $3, $4, $5, $6)
+            """, current_user["id"], json.dumps(result), file.filename, inspection_type,
+                 base64_image, file.content_type)
+            await conn.execute(
+                "UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1",
+                current_user["id"]
+            )
+
+    return JSONResponse(result)
 
 
 class AnalysisSaveRequest(BaseModel):
