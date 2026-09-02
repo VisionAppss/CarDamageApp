@@ -10,6 +10,7 @@ import os
 import uuid
 import secrets
 import random
+import time
 import configparser
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -628,20 +629,43 @@ async def analyze_image(
 
     base64_image = base64.b64encode(contents).decode('utf-8')
 
-    # Запрос к YandexGPT
-    try:
-        response = ai_client.chat.completions.create(
-            model=f"gpt://{YANDEX_FOLDER}/{YANDEX_MODEL}",
-            temperature=0.1,
-            max_tokens=20000,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": [
-                    {"type": "text", "text": get_user_prompt(inspection_type)},
-                    {"type": "image_url", "image_url": {"url": f"data:{file.content_type};base64,{base64_image}"}}
-                ]}
-            ]
-        )
+    # Запрос к YandexGPT (retry 2 раза при connection errors)
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": [
+            {"type": "text", "text": get_user_prompt(inspection_type)},
+            {"type": "image_url", "image_url": {"url": f"data:{file.content_type};base64,{base64_image}"}}
+        ]}
+    ]
+    last_exc = None
+    response = None
+    for attempt in range(3):
+        try:
+            response = ai_client.chat.completions.create(
+                model=f"gpt://{YANDEX_FOLDER}/{YANDEX_MODEL}",
+                temperature=0.1,
+                max_tokens=8000,
+                messages=messages,
+            )
+            break
+        except openai.APIConnectionError as e:
+            last_exc = e
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+            continue
+        except openai.APIStatusError as e:
+            status = e.status_code
+            if status == 401:
+                raise HTTPException(status_code=502, detail="Ошибка авторизации нейросети: проверьте API-ключ")
+            if status == 429:
+                raise HTTPException(status_code=502, detail="Превышен лимит запросов к нейросети, попробуйте позже")
+            if status == 503:
+                raise HTTPException(status_code=502, detail="Нейросеть временно недоступна, попробуйте позже")
+            raise HTTPException(status_code=502, detail=f"Ошибка нейросети: HTTP {status}")
+        except openai.APITimeoutError:
+            raise HTTPException(status_code=504, detail="Нейросеть не ответила вовремя, попробуйте ещё раз")
+    if response is None:
+        raise HTTPException(status_code=502, detail=f"Нейросеть недоступна (нет соединения). Попробуйте позже.")
 
         finish_reason = response.choices[0].finish_reason if response.choices else None
         raw = response.choices[0].message.content if response.choices else None
@@ -695,10 +719,14 @@ async def analyze_image(
 
     except HTTPException:
         raise
+    except openai.APIConnectionError as e:
+        if file_path.exists():
+            file_path.unlink()
+        raise HTTPException(status_code=502, detail="Нейросеть недоступна (нет соединения). Попробуйте позже.")
     except Exception as e:
         if file_path.exists():
             file_path.unlink()
-        raise HTTPException(status_code=502, detail=f"Ошибка нейросети: {str(e)}")
+        raise HTTPException(status_code=502, detail=f"Ошибка нейросети: {type(e).__name__}: {str(e)}")
 
 
 class AnalysisSaveRequest(BaseModel):
