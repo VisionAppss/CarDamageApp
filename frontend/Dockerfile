@@ -14,6 +14,8 @@ COPY privacy.html /usr/share/nginx/html/
 RUN chmod 644 /usr/share/nginx/html/privacy.html
 COPY terms.html /usr/share/nginx/html/
 RUN chmod 644 /usr/share/nginx/html/terms.html
+COPY admin.html /usr/share/nginx/html/
+RUN chmod 644 /usr/share/nginx/html/admin.html
 
 # Копируем конфиг nginx
 COPY icons/ /usr/share/nginx/html/icons/

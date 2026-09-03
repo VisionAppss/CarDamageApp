@@ -958,7 +958,12 @@ async def payment_status(payment_id: str):
         raise HTTPException(status_code=503, detail="Оплата временно недоступна")
     try:
         payment = YKPayment.find_one(payment_id)
-        return {"status": payment.status, "paid": payment.paid}
+        return {
+            "status": payment.status,
+            "paid": payment.paid,
+            "amount": payment.amount.value,
+            "type": (payment.metadata or {}).get("type", "pdf"),
+        }
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
 

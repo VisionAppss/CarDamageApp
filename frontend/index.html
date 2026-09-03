@@ -1465,6 +1465,7 @@
   <meta name="yandex-verification" content="c65ee41bb12bb7ab" />
   <!-- Yandex.Metrika counter -->
   <script type="text/javascript">
+    window.dataLayer = window.dataLayer || [];
     (function(m,e,t,r,i,k,a){
         m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
         m[i].l=1*new Date();
@@ -1712,6 +1713,21 @@
         })
       });
     } catch(e) { /* не блокируем */ }
+  }
+
+  // Отправляет покупку в ecommerce dataLayer — Метрика подхватывает revenue
+  // для целей-ретаргетинга и ДРР/ROI в Директе
+  function trackPurchase(paymentId, amount, type) {
+    if (!amount) return;
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      ecommerce: {
+        purchase: {
+          actionField: { id: paymentId, revenue: amount },
+          products: [{ id: type || 'pdf', name: 'Carscan — ' + (type === 'analysis' ? 'анализ повреждений' : 'PDF-отчёт'), price: amount, quantity: 1 }]
+        }
+      }
+    });
   }
 
   // Цели Метрики — вызываются в ключевых точках воронки
@@ -3564,11 +3580,18 @@
     if (pendingId) {
       // Ретраи: ЮКасса иногда редиректит до подтверждения оплаты
       let paid = false;
+      let paymentAmount = null;
+      let paymentType = null;
       for (let attempt = 0; attempt < 5 && !paid; attempt++) {
         if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
         try {
           const res = await fetch('/api/payment/status/' + pendingId);
-          if (res.ok) ({ paid } = await res.json());
+          if (res.ok) {
+            const data = await res.json();
+            paid = data.paid;
+            paymentAmount = data.amount;
+            paymentType = data.type;
+          }
         } catch(e) { /* сеть */ }
       }
       if (paid) {
@@ -3588,7 +3611,8 @@
           } catch(e) {}
         }
 
-        track('payment_success');
+        track('payment_success', { amount: paymentAmount, type: paymentType });
+        trackPurchase(pendingId, paymentAmount, paymentType);
         showPaymentSuccessBanner();
         return;
       }
