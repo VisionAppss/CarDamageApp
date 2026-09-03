@@ -2338,6 +2338,7 @@
   // ── Damage Diagram ──────────────────────────────────────────────────────
 
   function buildDiagram(json, elapsedSecs) {
+    return ''; // temporarily disabled
     const raw     = (json && json.data) ? json.data : json;
     const damages = (raw && raw.damages) ? raw.damages : [];
 
