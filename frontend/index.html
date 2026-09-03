@@ -1715,14 +1715,18 @@
   }
 
   // Цели Метрики — вызываются в ключевых точках воронки
+  // page_view         → просмотр страницы (с user_id)
+  // photo_uploaded    → пользователь выбрал/перетащил фото
   // analyze_started   → пользователь нажал «Анализировать»
   // analyze_success   → анализ завершён успешно
   // analyze_error     → ошибка анализа
-  // paywall_shown     → показана блокировка (исчерпан лимит)
+  // paywall_shown     → показана блокировка (исчерпан лимит / скачивание PDF)
+  // payment_started   → нажал «Оплатить через ЮKassa»
+  // payment_success   → оплата подтверждена
   // cabinet_opened    → открыт личный кабинет
   // history_analysis_opened → открыт старый анализ
+  // feedback_sent     → отправлена обратная связь
   // logout            → выход из аккаунта
-  // page_view         → просмотр страницы (с user_id)
 
   // ── Auth ──
   async function initAuth() {
@@ -1776,6 +1780,7 @@
 
   function showPaywall(type = 'analysis') {
     currentPaywallType = type;
+    track('paywall_shown', { type });
     const title = document.getElementById('paywallTitle');
     const sub   = document.getElementById('paywallSub');
     const price = document.getElementById('paywallPriceVal');
@@ -1957,6 +1962,7 @@
     const valid = newFiles.map(f => validateFile(f)).filter(Boolean);
     if (!valid.length) return;
     currentFiles = [...currentFiles, ...valid].slice(0, 5);
+    track('photo_uploaded', { count: valid.length });
     renderPreviews();
     hideError();
     hideResult();

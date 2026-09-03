@@ -744,7 +744,7 @@
       <div>
         <h2>Попробуй Carscan прямо сейчас</h2>
         <p>Загрузи фото автомобиля и получи профессиональный анализ кузова за 60 секунд бесплатно.</p>
-        <a href="/" class="btn-primary">Попробовать бесплатно</a>
+        <a href="/" class="btn-primary" id="promoTryFreeBtn">Попробовать бесплатно</a>
         <div class="fine">Без регистрации и привязки карты</div>
       </div>
       <div class="dropzone" id="dz2" style="margin:0;padding:32px" onclick="dzClick(event)">
@@ -823,6 +823,7 @@
     const f = e && e.target && e.target.files && e.target.files[0];
     if (!f) return;
     promoFile = f;
+    if (window.ym) ym(108345172, 'reachGoal', 'promo_photo_uploaded');
     showPreview(f);
   }
 
@@ -870,6 +871,7 @@
 
   async function goAnalyze(e) {
     if (e) e.stopPropagation();
+    if (window.ym) ym(108345172, 'reachGoal', 'promo_analyze_clicked');
     const btn = document.getElementById('dz-analyze-btn');
     if (btn) { btn.textContent = 'Загружаем…'; btn.disabled = true; }
     try { await savePromoFile(promoFile); } catch(_) {}
