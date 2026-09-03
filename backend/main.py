@@ -25,7 +25,7 @@ import httpx
 import openai
 import asyncpg
 import aiosmtplib
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Header, Request
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Header, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
@@ -423,6 +423,124 @@ async def resolve_session(token: Optional[str], pool) -> Optional[dict]:
         await conn.execute("UPDATE sessions SET last_used = NOW() WHERE token = $1", token)
     return {"id": row["user_id"], "email": row["email"],
             "created_at": row["created_at"].isoformat()}
+
+
+async def require_admin(x_session_token: Optional[str] = Header(None)) -> dict:
+    user = await resolve_session(x_session_token, app.state.pool)
+    if not user or not ADMIN_EMAIL or user["email"].lower() != ADMIN_EMAIL.lower():
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
+    return user
+
+
+# === АНАЛИТИКА (см. backend/analytics_queries.sql) ===
+
+ANALYTICS_QUERIES = [
+    ("dashboard_30d", "Дашборд: ключевые метрики за 30 дней", """
+        SELECT
+          COUNT(*) FILTER (WHERE event = 'page_view')          AS "просмотров",
+          COUNT(*) FILTER (WHERE event = 'analyze_started')    AS "анализов_запущено",
+          COUNT(*) FILTER (WHERE event = 'analyze_success')    AS "анализов_успешно",
+          COUNT(*) FILTER (WHERE event = 'analyze_error')      AS "ошибок",
+          COUNT(*) FILTER (WHERE event = 'paywall_shown')      AS "упёрлись_в_лимит",
+          COUNT(DISTINCT user_id) FILTER (WHERE event = 'page_view') AS "уникальных_пользователей"
+        FROM events
+        WHERE created_at > now() - interval '30 days'
+    """),
+    ("funnel_30d", "Воронка конверсии", """
+        SELECT
+          COUNT(*) FILTER (WHERE event = 'page_view')          AS "1. Зашли",
+          COUNT(*) FILTER (WHERE event = 'photo_uploaded')     AS "2. Загрузили фото",
+          COUNT(*) FILTER (WHERE event = 'analyze_started')    AS "3. Запустили анализ",
+          COUNT(*) FILTER (WHERE event = 'analyze_success')    AS "4. Получили результат",
+          COUNT(*) FILTER (WHERE event = 'paywall_shown')      AS "5. Упёрлись в лимит"
+        FROM events
+        WHERE created_at > now() - interval '30 days'
+    """),
+    ("dau", "Активные пользователи по дням (DAU)", """
+        SELECT
+          date_trunc('day', created_at)::date AS "день",
+          COUNT(DISTINCT user_id) AS "активных"
+        FROM events
+        WHERE event = 'page_view'
+          AND created_at > now() - interval '30 days'
+        GROUP BY 1
+        ORDER BY 1 DESC
+    """),
+    ("new_users", "Новые пользователи по дням", """
+        SELECT
+          date_trunc('day', created_at)::date AS "день",
+          COUNT(*) AS "новых"
+        FROM profiles
+        WHERE created_at > now() - interval '30 days'
+        GROUP BY 1
+        ORDER BY 1 DESC
+    """),
+    ("photo_quality", "Анализы: статистика по качеству фото", """
+        SELECT
+          result->'data'->'meta'->>'photo_quality' AS "качество_фото",
+          COUNT(*) AS "анализов",
+          ROUND(AVG((result->'data'->'meta'->>'analysis_confidence')::numeric), 1) AS "средняя_уверенность"
+        FROM analyses
+        WHERE created_at > now() - interval '30 days'
+        GROUP BY 1
+    """),
+    ("top_damages", "Повреждения: самые частые типы", """
+        SELECT
+          dmg->>'type' AS "тип",
+          dmg->>'severity' AS "серьёзность",
+          COUNT(*) AS "встречается"
+        FROM analyses,
+             jsonb_array_elements(result->'data'->'damages') AS dmg
+        WHERE created_at > now() - interval '30 days'
+        GROUP BY 1, 2
+        ORDER BY 3 DESC
+        LIMIT 15
+    """),
+    ("avg_repair_cost", "Средняя стоимость ремонта", """
+        SELECT
+          ROUND(AVG((result->'data'->'summary'->'total_estimated_cost'->>'min')::numeric)) AS "средний_минимум",
+          ROUND(AVG((result->'data'->'summary'->'total_estimated_cost'->>'max')::numeric)) AS "средний_максимум"
+        FROM analyses
+        WHERE created_at > now() - interval '30 days'
+          AND result->'data'->'summary'->'total_estimated_cost' IS NOT NULL
+    """),
+    ("retention", "Retention: пользователи сделавшие >1 анализа", """
+        SELECT
+          analyses_count AS "анализов",
+          COUNT(*) AS "пользователей"
+        FROM profiles
+        GROUP BY 1
+        ORDER BY 1
+    """),
+    ("recent_errors", "Последние 20 ошибок", """
+        SELECT created_at, params->>'message' AS "ошибка", ua
+        FROM events
+        WHERE event = 'analyze_error'
+        ORDER BY created_at DESC
+        LIMIT 20
+    """),
+    ("near_limit_users", "Пользователи близкие к лимиту", """
+        SELECT email, analyses_count, is_paid, created_at
+        FROM profiles
+        WHERE analyses_count >= 1 AND is_paid = FALSE
+        ORDER BY created_at DESC
+    """),
+]
+
+
+@app.get("/admin/analytics")
+async def admin_analytics(admin: dict = Depends(require_admin)):
+    """Выполняет все аналитические запросы и возвращает результат для админ-панели."""
+    sections = []
+    async with app.state.pool.acquire() as conn:
+        for key, title, sql in ANALYTICS_QUERIES:
+            rows = await conn.fetch(sql)
+            sections.append({
+                "key": key,
+                "title": title,
+                "rows": [dict(r) for r in rows],
+            })
+    return {"sections": sections}
 
 
 # === ЭНДПОИНТЫ ===
