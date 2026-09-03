@@ -6,12 +6,15 @@ FastAPI бэкенд с подключением к PostgreSQL.
 
 import base64
 import json
+import logging
 import os
 import uuid
 import secrets
 import random
 import time
 import configparser
+
+logger = logging.getLogger("uvicorn.error")
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -655,13 +658,15 @@ async def analyze_image(
             continue
         except openai.APIStatusError as e:
             status = e.status_code
+            raw_body = e.response.text if hasattr(e, 'response') and e.response else str(e)
+            logger.error(f"YandexGPT API error {status}: {raw_body}")
             if status == 401:
                 raise HTTPException(status_code=502, detail="Ошибка авторизации нейросети: проверьте API-ключ")
             if status == 429:
                 raise HTTPException(status_code=502, detail="Превышен лимит запросов к нейросети, попробуйте позже")
             if status == 503:
                 raise HTTPException(status_code=502, detail="Нейросеть временно недоступна, попробуйте позже")
-            raise HTTPException(status_code=502, detail=f"Ошибка нейросети: HTTP {status}")
+            raise HTTPException(status_code=502, detail=f"Ошибка нейросети: HTTP {status}: {raw_body[:300]}")
         except openai.APITimeoutError:
             raise HTTPException(status_code=504, detail="Нейросеть не ответила вовремя, попробуйте ещё раз")
     if response is None:
