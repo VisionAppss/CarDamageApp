@@ -60,11 +60,12 @@ services:
     build: ./frontend
     container_name: car-frontend
     ports:
-      - "4000:80"
+      - "80:80"
       - "443:443"
     volumes:
       - /etc/ssl/car-scan.ru.crt:/etc/ssl/car-scan.ru.crt:ro
       - /etc/ssl/car-scan.ru.key:/etc/ssl/car-scan.ru.key:ro
+      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - backend
     restart: unless-stopped
