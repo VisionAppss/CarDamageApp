@@ -525,6 +525,17 @@ ANALYTICS_QUERIES = [
         WHERE analyses_count >= 1 AND is_paid = FALSE
         ORDER BY created_at DESC
     """),
+    ("payments_summary", "Выручка за 30 дней (по статусу и типу)", """
+        SELECT
+          status AS "статус",
+          type AS "тип",
+          COUNT(*) AS "платежей",
+          SUM(amount) AS "сумма_руб"
+        FROM payments
+        WHERE created_at > now() - interval '30 days'
+        GROUP BY status, type
+        ORDER BY status, type
+    """),
 ]
 
 
