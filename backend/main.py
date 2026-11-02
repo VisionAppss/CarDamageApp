@@ -43,9 +43,8 @@ if not config.sections():
         "config.ini не найден! Скопируйте config.example.ini в config.ini и заполните ключи."
     )
 
-YANDEX_API_KEY = config.get('yandex', 'api_key')
-YANDEX_FOLDER  = config.get('yandex', 'folder_id')
-YANDEX_MODEL   = config.get('yandex', 'model', fallback='qwen3.6-35b-a3b/latest')
+KIMI_API_KEY = config.get('kimi', 'api_key')
+KIMI_MODEL   = config.get('kimi', 'model', fallback='kimi-k3.1-pro')
 
 # SMTP для OTP-авторизации
 SMTP_HOST = config.get('smtp', 'host',     fallback='smtp.yandex.ru')
@@ -237,13 +236,13 @@ Instructions:
 Return ONLY the JSON object, no markdown, no ```json wrapper."""
 
 
-# === YANDEX GPT ===
+# === KIMI (Moonshot AI) ===
 
 http_client = httpx.Client(timeout=60.0)
 
 ai_client = openai.OpenAI(
-    api_key=YANDEX_API_KEY,
-    base_url="https://llm.api.cloud.yandex.net/v1",
+    api_key=KIMI_API_KEY,
+    base_url="https://api.moonshot.ai/v1",
     http_client=http_client,
 )
 
@@ -252,7 +251,7 @@ ai_client = openai.OpenAI(
 
 app = FastAPI(
     title="Car Damage Analyzer Pro",
-    description="API для анализа повреждений автомобилей через YandexGPT",
+    description="API для анализа повреждений автомобилей через Kimi K3.1 Pro",
     version="3.0.0"
 )
 
@@ -761,7 +760,7 @@ async def analyze_image(
 
     base64_image = base64.b64encode(contents).decode('utf-8')
 
-    # Запрос к YandexGPT (retry 2 раза при connection errors)
+    # Запрос к Kimi (retry 2 раза при connection errors)
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": [
@@ -774,7 +773,7 @@ async def analyze_image(
     for attempt in range(3):
         try:
             response = ai_client.chat.completions.create(
-                model=f"gpt://{YANDEX_FOLDER}/{YANDEX_MODEL}",
+                model=KIMI_MODEL,
                 temperature=0.1,
                 max_tokens=8000,
                 messages=messages,
@@ -788,7 +787,7 @@ async def analyze_image(
         except openai.APIStatusError as e:
             status = e.status_code
             raw_body = e.response.text if hasattr(e, 'response') and e.response else str(e)
-            logger.error(f"YandexGPT API error {status}: {raw_body}")
+            logger.error(f"Kimi API error {status}: {raw_body}")
             if status == 401:
                 raise HTTPException(status_code=502, detail="Ошибка авторизации нейросети: проверьте API-ключ")
             if status == 429:
@@ -829,7 +828,7 @@ async def analyze_image(
     result = {
         "success": True,
         "data": result_data,
-        "model_used": YANDEX_MODEL,
+        "model_used": KIMI_MODEL,
         "tokens_used": response.usage.total_tokens if response.usage else None,
         "processed_at": datetime.now().isoformat(),
         "filename": filename
