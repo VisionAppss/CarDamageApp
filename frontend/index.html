@@ -2204,6 +2204,9 @@
       </div>`;
     }
 
+    // Полный отчёт открыт, если за него уже заплачено (тот же флаг, что и для PDF)
+    const reportUnlocked = !!sessionStorage.getItem('ao_pdf_paid') || !!(currentProfile && (currentProfile.pdf_credits || 0) >= 1);
+
     // Damages header
     html += `<div class="section-head">
       <span class="section-head-label">Повреждения</span>
@@ -2213,7 +2216,25 @@
     if (damages.length === 0) {
       html += `<div class="card" style="color:var(--muted);font-size:13px">Повреждений не обнаружено</div>`;
     } else {
-      damages.forEach(d => {
+      damages.forEach((d, i) => {
+        const locked = !reportUnlocked && i > 0;
+        if (locked) {
+          html += `
+            <div class="damage-card severity-${d.severity}" style="position:relative;overflow:hidden">
+              <div style="filter:blur(6px);pointer-events:none;user-select:none">
+                <div class="dmg-head">
+                  <div class="dmg-type">${damageLabel(d.type)}</div>
+                  <div class="dmg-severity">${severityLabel(d.severity)}</div>
+                </div>
+                <div class="dmg-location">${esc(d.location)}</div>
+                <div class="dmg-description">${esc(d.description)}</div>
+              </div>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.55)">
+                <span style="font-size:13px;font-weight:600;color:var(--black)">🔒 Повреждение ${i + 1}</span>
+              </div>
+            </div>`;
+          return;
+        }
         const sc = severityColor(d.severity);
         html += `
           <div class="damage-card severity-${d.severity}">
@@ -2238,16 +2259,30 @@
     // Summary
     html += `<div class="section-head" style="margin-top:1px">
       <span class="section-head-label">Итоговая оценка</span>
-    </div>
-    <div class="summary-card">
-      <div class="summary-row"><span class="sum-label">Срок ремонта</span><span class="sum-value">${esc(summary.repair_time_days)}</span></div>
-      <div class="summary-row"><span class="sum-label">Автомобиль на ходу</span><span class="sum-value">${drivableLabel(summary.drivable)}</span></div>
-      <div class="summary-row"><span class="sum-label">Очный осмотр</span><span class="sum-value">${summary.requires_in_person_inspection ? 'Рекомендуется' : 'Не требуется'}</span></div>
-      <div class="summary-row"><span class="sum-label">Уверенность анализа</span><span class="sum-value">${meta.analysis_confidence != null ? meta.analysis_confidence + "%" : "—"}</span></div>
-      <div class="summary-row total"><span class="sum-label">Итоговая стоимость</span><span class="sum-total">${summary.total_estimated_cost ? fmtRange(summary.total_estimated_cost.min, summary.total_estimated_cost.max) : "—"}</span></div>
     </div>`;
 
-    // Recommendations
+    if (!reportUnlocked && damages.length > 0) {
+      html += `<div class="summary-card" style="position:relative;overflow:hidden;min-height:120px">
+        <div style="filter:blur(6px);pointer-events:none;user-select:none">
+          <div class="summary-row"><span class="sum-label">Срок ремонта</span><span class="sum-value">${esc(summary.repair_time_days)}</span></div>
+          <div class="summary-row total"><span class="sum-label">Итоговая стоимость</span><span class="sum-total">${summary.total_estimated_cost ? fmtRange(summary.total_estimated_cost.min, summary.total_estimated_cost.max) : "—"}</span></div>
+        </div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(255,255,255,.65);padding:16px;text-align:center">
+          <span style="font-size:14px;font-weight:600;color:var(--black)">Полный отчёт и итоговая стоимость ремонта — в платном отчёте</span>
+          <button class="btn-primary" onclick="downloadPDF()" style="padding:10px 20px">Купить полный отчёт — 99 ₽</button>
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="summary-card">
+        <div class="summary-row"><span class="sum-label">Срок ремонта</span><span class="sum-value">${esc(summary.repair_time_days)}</span></div>
+        <div class="summary-row"><span class="sum-label">Автомобиль на ходу</span><span class="sum-value">${drivableLabel(summary.drivable)}</span></div>
+        <div class="summary-row"><span class="sum-label">Очный осмотр</span><span class="sum-value">${summary.requires_in_person_inspection ? 'Рекомендуется' : 'Не требуется'}</span></div>
+        <div class="summary-row"><span class="sum-label">Уверенность анализа</span><span class="sum-value">${meta.analysis_confidence != null ? meta.analysis_confidence + "%" : "—"}</span></div>
+        <div class="summary-row total"><span class="sum-label">Итоговая стоимость</span><span class="sum-total">${summary.total_estimated_cost ? fmtRange(summary.total_estimated_cost.min, summary.total_estimated_cost.max) : "—"}</span></div>
+      </div>`;
+    }
+
+    // Recommendations — общие советы, не раскрывают платные детали, оставляем видимыми
     if ((summary.recommendations||[]).length) {
       html += `<div class="rec-card">
         <div class="section-head-label" style="margin-bottom:12px">Рекомендации</div>
@@ -2257,8 +2292,8 @@
       </div>`;
     }
 
-    // Seller script
-    if (damages.length > 0) {
+    // Seller script — содержит повреждения и итоговую стоимость, доступен только после оплаты
+    if (damages.length > 0 && reportUnlocked) {
       const topDmg = damages.slice(0, 3).map(d =>
         damageLabel(d.type).toLowerCase() + ' (' + (d.location || '') + ')'
       ).join(', ');
@@ -2283,7 +2318,7 @@
 
     // Actions
     html += `<div class="action-row">
-      <button class="btn-primary" onclick="downloadPDF()">Скачать PDF-отчёт</button>
+      <button class="btn-primary" onclick="downloadPDF()">${reportUnlocked ? 'Скачать PDF-отчёт' : 'Купить полный отчёт — 99 ₽'}</button>
       <button class="btn-outline" onclick="resetForm()">Новый анализ</button>
     </div>`;
 
