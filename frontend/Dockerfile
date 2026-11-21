@@ -10,6 +10,7 @@ COPY auth.html /usr/share/nginx/html/
 RUN chmod 644 /usr/share/nginx/html/auth.html
 COPY promo.html /usr/share/nginx/html/
 RUN chmod 644 /usr/share/nginx/html/promo.html
+COPY --chmod=644 promo2.html promo2.css promo2.js /usr/share/nginx/html/
 COPY privacy.html /usr/share/nginx/html/
 RUN chmod 644 /usr/share/nginx/html/privacy.html
 COPY terms.html /usr/share/nginx/html/

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Загрузите фото автомобиля. CarScan оценит видимые повреждения кузова и покажет ориентировочную стоимость ремонта.">
+  <link rel="canonical" href="https://car-scan.ru/promo2">
+  <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/promo2.css">
+  <title>Проверка кузова автомобиля по фото — CarScan</title>
+  <script src="/promo2.js" defer></script>
+</head>
+<body>
+  <header class="shell topbar">
+    <a class="brand" href="/" aria-label="CarScan, главная"><span>Car</span>Scan</a>
+    <nav aria-label="Разделы страницы">
+      <a href="#how">Как работает</a>
+      <a href="#features">Возможности</a>
+      <a href="#audience">Для кого</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="outline-button" href="#check">Проверить авто</a>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="shell hero-inner">
+        <div class="hero-art" aria-hidden="true">
+          <div class="hero-callout callout-scratch"><img src="/img/promo2/scratch.webp" alt=""></div>
+          <div class="hero-callout callout-chip"><img src="/img/promo2/chip.webp" alt=""></div>
+          <div class="hero-callout callout-dent"><img src="/img/promo2/dent.webp" alt=""></div>
+          <div class="hero-callout callout-door"><img src="/img/promo2/door.webp" alt=""></div>
+          <div class="hero-callout callout-arch"><img src="/img/promo2/rust.webp" alt=""></div>
+          <i class="scan-point point-one"></i><i class="scan-point point-two"></i><i class="scan-point point-three"></i>
+        </div>
+        <div class="hero-copy">
+          <h1 id="hero-heading">Узнай,<br>что скрывает<br><em>кузов</em></h1>
+          <p>Анализ видимых повреждений<br>автомобиля по фото</p>
+          <a class="primary-button" href="#check">Проверить кузов <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell section how" id="how">
+      <h2>Как это работает</h2>
+      <div class="steps">
+        <article class="step">
+          <div class="step-heading">
+            <span class="step-number">01</span>
+            <div><h3>Загрузи фото</h3><p>Сфотографируй автомобиль<br>с разных ракурсов</p></div>
+          </div>
+          <div class="step-art phone-art">
+            <img class="phone-photo" src="/img/promo2/phone.webp" alt="Съёмка кузова на смартфон">
+            <div class="step-thumbs" aria-hidden="true">
+              <img src="/img/promo2/buyer.webp" alt=""><img src="/img/promo2/report.webp" alt=""><img src="/img/promo2/garage.webp" alt="">
+            </div>
+          </div>
+        </article>
+        <article class="step">
+          <div class="step-heading">
+            <span class="step-number">02</span>
+            <div><h3>Получи анализ</h3><p>Нейросеть определит<br>видимые повреждения<br>на кузове</p></div>
+          </div>
+          <div class="step-art scan-art"><img src="/img/promo2/scan.webp" alt="Автомобиль сверху с отмеченными участками кузова"></div>
+        </article>
+        <article class="step">
+          <div class="step-heading">
+            <span class="step-number">03</span>
+            <div><h3>Изучи отчёт</h3><p>Посмотри, где повреждения, какие работы могут понадобиться и примерную стоимость ремонта</p></div>
+          </div>
+          <div class="step-art estimate-art">
+            <img src="/img/promo2/scratch.webp" alt="">
+            <div><p>Царапина<br>на бампере</p><span class="severity">Лёгкая</span><strong>8 000 – 15 000 ₽</strong></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="shell section" id="features">
+      <h2>Что находим</h2>
+      <div class="damage-grid">
+        <figure><img src="/img/promo2/scratch.webp" alt="" loading="lazy"><figcaption>Царапины</figcaption></figure>
+        <figure><img src="/img/promo2/dent.webp" alt="" loading="lazy"><figcaption>Вмятины</figcaption></figure>
+        <figure><img src="/img/promo2/chip.webp" alt="" loading="lazy"><figcaption>Сколы</figcaption></figure>
+        <figure><img src="/img/promo2/door.webp" alt="" loading="lazy"><figcaption>Деформации</figcaption></figure>
+        <figure><img src="/img/promo2/rust.webp" alt="" loading="lazy"><figcaption>Коррозия</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="shell section">
+      <h2>Пример отчёта</h2>
+      <p class="section-lead">Наглядная карта кузова с отмеченными повреждениями<br>и детальной информацией по каждому из них.</p>
+      <div class="report">
+        <div class="report-view">
+          <div class="report-tabs" aria-label="Вид отчёта">
+            <button type="button" data-view="map" aria-pressed="true">Карта повреждений</button>
+            <button type="button" data-view="list" aria-pressed="false">Список</button>
+            <button type="button" data-view="photo" aria-pressed="false">Фото</button>
+          </div>
+          <div class="report-stage" data-panel="map">
+            <div class="report-thumbs" aria-label="Ракурсы кузова">
+              <button type="button" data-angle="report" aria-label="Карта кузова" aria-pressed="true"><img src="/img/promo2/report.webp" alt="" loading="lazy"></button>
+              <button type="button" data-angle="buyer" aria-label="Вид спереди" aria-pressed="false"><img src="/img/promo2/buyer.webp" alt="" loading="lazy"></button>
+              <button type="button" data-angle="garage" aria-label="Вид сзади" aria-pressed="false"><img src="/img/promo2/garage.webp" alt="" loading="lazy"></button>
+              <button type="button" data-angle="side" aria-label="Вид сбоку" aria-pressed="false"><img src="/img/promo2/side.webp" alt="" loading="lazy"></button>
+            </div>
+            <div class="report-car">
+              <img id="report-angle" src="/img/promo2/report.webp" alt="Карта кузова автомобиля" loading="lazy">
+              <div class="map-points" id="map-points">
+                <button type="button" data-damage="0" aria-label="Царапина на переднем бампере"></button>
+                <button type="button" data-damage="2" aria-label="Вмятина на переднем крыле"></button>
+                <button type="button" data-damage="4" aria-label="Коррозия на задней арке"></button>
+              </div>
+            </div>
+          </div>
+          <p class="report-legend" data-panel="map"><span>Лёгкие</span><span>Средние</span><span>Серьёзные</span></p>
+          <div class="report-summary" data-panel="list" hidden></div>
+          <figure class="report-photo" data-panel="photo" hidden><img id="damage-photo" src="/img/promo2/scratch.webp" alt=""><figcaption id="damage-caption"></figcaption></figure>
+        </div>
+        <div class="report-findings">
+          <h3>Найденные повреждения <span>5</span></h3>
+          <ul id="damage-list">
+            <li><button type="button" data-damage="0"><img src="/img/promo2/scratch.webp" alt="" loading="lazy"><span class="damage-name">Царапина<br>на переднем бампере</span><span class="severity">Лёгкая</span><strong>8 000 – 15 000 ₽</strong><span class="chevron" aria-hidden="true">›</span></button></li>
+            <li><button type="button" data-damage="1"><img src="/img/promo2/chip.webp" alt="" loading="lazy"><span class="damage-name">Скол<br>на капоте</span><span class="severity">Лёгкая</span><strong>5 000 – 12 000 ₽</strong><span class="chevron" aria-hidden="true">›</span></button></li>
+            <li><button type="button" data-damage="2"><img src="/img/promo2/dent.webp" alt="" loading="lazy"><span class="damage-name">Вмятина<br>на переднем крыле</span><span class="severity medium">Средняя</span><strong>15 000 – 30 000 ₽</strong><span class="chevron" aria-hidden="true">›</span></button></li>
+            <li><button type="button" data-damage="3"><img src="/img/promo2/door.webp" alt="" loading="lazy"><span class="damage-name">Царапина<br>на задней двери</span><span class="severity">Лёгкая</span><strong>8 000 – 16 000 ₽</strong><span class="chevron" aria-hidden="true">›</span></button></li>
+            <li><button type="button" data-damage="4"><img src="/img/promo2/rust.webp" alt="" loading="lazy"><span class="damage-name">Коррозия<br>на задней арке</span><span class="severity medium">Средняя</span><strong>10 000 – 25 000 ₽</strong><span class="chevron" aria-hidden="true">›</span></button></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell section" id="audience">
+      <h2>Кому подходит</h2>
+      <div class="audience-grid">
+        <article><img src="/img/promo2/buyer.webp" alt="" loading="lazy"><div><h3>Покупателям<br>подержанных авто</h3><p>Поможет внимательнее осмотреть кузов перед покупкой и ничего не упустить.</p></div></article>
+        <article><img src="/img/promo2/garage.webp" alt="" loading="lazy"><div><h3>Автосервисам<br>и дилерам</h3><p>Ускоряет первичный осмотр и помогает оценить объём работ.</p></div></article>
+        <article><img src="/img/promo2/fleet.webp" alt="" loading="lazy"><div><h3>Автопаркам<br>и компаниям</h3><p>Упрощает регулярный осмотр и контроль состояния автомобилей.</p></div></article>
+      </div>
+    </section>
+
+    <section class="shell section" id="faq">
+      <div class="faq-heading"><h2>Частые вопросы</h2><button id="expand-faq" type="button">Все вопросы <span aria-hidden="true">→</span></button></div>
+      <div class="faq-grid">
+        <div>
+          <details><summary>Какие повреждения вы находите?</summary><p>На снимках можно заметить царапины, вмятины, сколы, деформации и видимые следы коррозии.</p></details>
+          <details><summary>Нужно ли фотографировать весь автомобиль?</summary><p>Для оценки отдельного повреждения сделайте крупный снимок и фото детали целиком. Для осмотра кузова снимите автомобиль с разных сторон.</p></details>
+          <details><summary>Какой результат я получу?</summary><p>Вы увидите описание видимых повреждений, возможные работы и ориентировочную стоимость ремонта.</p></details>
+          <details><summary>Насколько точен анализ?</summary><p>Результат зависит от качества фото и освещения. Для окончательной оценки стоимости нужен осмотр автомобиля специалистом.</p></details>
+        </div>
+        <div>
+          <details><summary>Подходит ли сервис для всех марок и моделей?</summary><p>Загрузить можно фото автомобиля любой марки и модели. Чем лучше видна повреждённая деталь, тем информативнее результат.</p></details>
+          <details><summary>Нужно ли устанавливать приложение?</summary><p>CarScan работает прямо в браузере телефона или компьютера.</p></details>
+          <details><summary>Как формируется стоимость ремонта?</summary><p>В отчёте показан ориентировочный диапазон с учётом вида повреждения и возможного способа ремонта.</p></details>
+          <details><summary>Мои фото где-то сохраняются?</summary><p>Подробнее об обработке фотографий можно прочитать в <a href="/privacy.html">политике конфиденциальности</a>.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <section class="check-section" id="check">
+      <div class="shell check-grid">
+        <div><h2>Проверь кузов<br>своего автомобиля</h2><p>Загрузи фото и получи анализ видимых повреждений</p></div>
+        <div class="upload">
+          <div class="dropzone" id="dropzone">
+            <input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+            <button id="select-photo" type="button">
+              <span class="photo-icon" aria-hidden="true">▧</span>
+              <span>Перетащи фото сюда<br><span class="upload-link">или выбери файлы</span></span>
+              <span class="up-arrow" aria-hidden="true">↑</span>
+            </button>
+          </div>
+          <div class="upload-thumbs" aria-hidden="true">
+            <img src="/img/promo2/buyer.webp" alt="" loading="lazy"><img src="/img/promo2/side.webp" alt="" loading="lazy"><img src="/img/promo2/garage.webp" alt="" loading="lazy"><img src="/img/promo2/rust.webp" alt="" loading="lazy"><img src="/img/promo2/scratch.webp" alt="" loading="lazy">
+          </div>
+          <p class="upload-status" id="upload-status" role="status"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
