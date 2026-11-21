@@ -43,13 +43,9 @@
     max-width: 340px; background: #fff; border: 1px solid #eee; border-radius: 10px; padding: 24px;
   }
   #loginBox h2 { font-size: 16px; margin: 0 0 4px; }
-  #loginBox .hint { color: #888; font-size: 12.5px; margin-bottom: 16px; }
   #loginBox .field { margin-bottom: 12px; }
-  #loginBox .row { display: flex; gap: 8px; }
-  #loginBox .row button { flex-shrink: 0; }
   #loginMsg { font-size: 12.5px; margin-top: 10px; min-height: 1em; }
   #loginMsg.error { color: #b42323; }
-  #loginMsg.ok { color: #1a7f37; }
   @media (prefers-color-scheme: dark) {
     body { background: #111; color: #eee; }
     #state, .card, #loginBox { background: #1a1a1a; border-color: #2a2a2a; }
@@ -58,7 +54,6 @@
     th, td { border-bottom-color: #262626; }
     button, input { background: #1a1a1a; border-color: #333; color: #eee; }
     #loginMsg.error { color: #ff8a8a; }
-    #loginMsg.ok { color: #5fd985; }
   }
 </style>
 </head>
@@ -74,22 +69,18 @@
 
 <div id="loginBox" hidden>
   <h2>Вход для администратора</h2>
-  <div class="hint">Код придёт на почту, привязанную к админ-доступу.</div>
-
-  <div id="emailStep">
-    <div class="field"><input id="loginEmail" type="email" placeholder="you@example.com" autocomplete="email"></div>
-    <button id="sendCodeBtn" onclick="AdminAuth.sendCode()">Получить код</button>
-  </div>
-
-  <div id="codeStep" hidden>
-    <div class="field"><input id="loginCode" type="text" inputmode="numeric" placeholder="Код из письма" autocomplete="one-time-code"></div>
-    <div class="row">
-      <button id="verifyBtn" onclick="AdminAuth.verifyCode()">Войти</button>
-      <button onclick="AdminAuth.resetToEmail()">Изменить email</button>
+  <form id="adminLogin">
+    <div class="field">
+      <label for="loginUsername">Логин</label>
+      <input id="loginUsername" name="username" autocomplete="username" maxlength="128" required>
     </div>
-  </div>
-
-  <div id="loginMsg"></div>
+    <div class="field">
+      <label for="loginPassword">Пароль</label>
+      <input id="loginPassword" name="password" type="password" autocomplete="current-password" maxlength="256" required>
+    </div>
+    <button id="loginBtn" type="submit">Войти</button>
+  </form>
+  <div id="loginMsg" role="status"></div>
 </div>
 
 <div id="state" hidden></div>
@@ -97,10 +88,6 @@
 
 <script>
 var AdminAuth = (function () {
-  function getToken() { try { return localStorage.getItem('ao_session'); } catch (e) { return null; } }
-  function setToken(t) { try { localStorage.setItem('ao_session', t); } catch (e) {} }
-  function clearToken() { try { localStorage.removeItem('ao_session'); } catch (e) {} }
-
   function setLoginMsg(text, kind) {
     var el = document.getElementById('loginMsg');
     el.textContent = text || '';
@@ -115,79 +102,51 @@ var AdminAuth = (function () {
     document.getElementById('ts').textContent = '';
   }
 
-  function resetToEmail() {
-    document.getElementById('emailStep').hidden = false;
-    document.getElementById('codeStep').hidden = true;
-    setLoginMsg('', '');
-  }
-
-  async function sendCode() {
-    var email = document.getElementById('loginEmail').value.trim();
-    if (!email) { setLoginMsg('Введите email', 'error'); return; }
-    var btn = document.getElementById('sendCodeBtn');
+  document.getElementById('adminLogin').addEventListener('submit', async function (event) {
+    event.preventDefault();
+    var username = document.getElementById('loginUsername').value;
+    var passwordField = document.getElementById('loginPassword');
+    var btn = document.getElementById('loginBtn');
     btn.disabled = true;
-    setLoginMsg('Отправляем код…', '');
+    setLoginMsg('Вход…', '');
     try {
-      var res = await fetch('/api/auth/send-code', {
+      var res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email })
+        body: JSON.stringify({ username: username, password: passwordField.value })
       });
-      var data = await res.json().catch(function () { return {}; });
       if (!res.ok) {
-        setLoginMsg(data.detail || 'Не удалось отправить код', 'error');
-        btn.disabled = false;
+        var data = await res.json().catch(function () { return {}; });
+        var message = res.status === 429 ? 'Слишком много попыток. Подождите минуту.' :
+          (typeof data.detail === 'string' ? data.detail : 'Не удалось войти');
+        setLoginMsg(message, 'error');
         return;
       }
-      document.getElementById('emailStep').hidden = true;
-      document.getElementById('codeStep').hidden = false;
-      document.getElementById('loginCode').focus();
-      setLoginMsg('Код отправлен на ' + email, 'ok');
-    } catch (e) {
-      setLoginMsg('Сеть недоступна: ' + e.message, 'error');
-    }
-    btn.disabled = false;
-  }
-
-  async function verifyCode() {
-    var email = document.getElementById('loginEmail').value.trim();
-    var code = document.getElementById('loginCode').value.trim();
-    if (!code) { setLoginMsg('Введите код из письма', 'error'); return; }
-    var btn = document.getElementById('verifyBtn');
-    btn.disabled = true;
-    setLoginMsg('Проверяем код…', '');
-    try {
-      var res = await fetch('/api/auth/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email, code: code })
-      });
-      var data = await res.json().catch(function () { return {}; });
-      if (!res.ok) {
-        setLoginMsg(data.detail || 'Неверный или устаревший код', 'error');
-        btn.disabled = false;
-        return;
-      }
-      setToken(data.token);
+      passwordField.value = '';
       setLoginMsg('', '');
-      Dashboard.load();
+      await Dashboard.load();
     } catch (e) {
       setLoginMsg('Сеть недоступна: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
     }
-    btn.disabled = false;
+  });
+
+  async function logout() {
+    var btn = document.getElementById('logoutBtn');
+    btn.disabled = true;
+    try {
+      var res = await fetch('/api/admin/logout', { method: 'POST' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      showLogin();
+    } catch (e) {
+      document.getElementById('ts').textContent = 'Не удалось выйти. Попробуйте ещё раз.';
+    } finally {
+      btn.disabled = false;
+    }
   }
 
-  function logout() {
-    var token = getToken();
-    if (token) {
-      fetch('/api/auth/logout', { method: 'POST', headers: { 'x-session-token': token } }).catch(function () {});
-    }
-    clearToken();
-    showLogin();
-  }
-
-  return { getToken: getToken, clearToken: clearToken, showLogin: showLogin,
-           resetToEmail: resetToEmail, sendCode: sendCode, verifyCode: verifyCode, logout: logout };
+  return { showLogin: showLogin, logout: logout };
 })();
 
 var Dashboard = (function () {
@@ -218,27 +177,20 @@ var Dashboard = (function () {
   }
 
   async function load() {
-    var token = AdminAuth.getToken();
-    if (!token) { AdminAuth.showLogin(); return; }
-
     document.getElementById('loginBox').hidden = true;
     document.getElementById('logoutBtn').hidden = false;
     setState('Загрузка…', false);
 
     var res;
     try {
-      res = await fetch('/api/admin/analytics', { headers: { 'x-session-token': token } });
+      res = await fetch('/api/admin/analytics');
     } catch (e) {
       setState('Не удалось связаться с сервером: ' + e.message, true);
       return;
     }
 
     if (res.status === 403) {
-      AdminAuth.clearToken();
       AdminAuth.showLogin();
-      AdminAuth.resetToEmail();
-      document.getElementById('loginMsg').textContent = 'Этот аккаунт не имеет прав администратора.';
-      document.getElementById('loginMsg').className = 'error';
       return;
     }
     if (!res.ok) {

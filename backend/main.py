@@ -4,7 +4,10 @@ FastAPI бэкенд с подключением к PostgreSQL.
 Хранит профили пользователей, историю анализов и события аналитики.
 """
 
+import asyncio
 import base64
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -25,7 +28,7 @@ import httpx
 import openai
 import asyncpg
 import aiosmtplib
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Header, Request, Depends
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Header, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
@@ -57,7 +60,22 @@ SMTP_FROM = config.get('smtp', 'from',     fallback=SMTP_USER)
 UPLOAD_DIR = Path(os.getenv('UPLOAD_DIR', '/app/uploads'))
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', '')
+ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', '')
+ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH', '')
+ADMIN_SESSION_COOKIE = 'carscan_admin_session'
+ADMIN_COOKIE_PATH = '/api/admin/'
+ADMIN_SESSION_SECONDS = 3600
+
+try:
+    salt_hex, digest_hex = ADMIN_PASSWORD_HASH.split(':')
+    ADMIN_SALT = bytes.fromhex(salt_hex)
+    ADMIN_DIGEST = bytes.fromhex(digest_hex)
+    if len(ADMIN_SALT) != 16 or len(ADMIN_DIGEST) != 32:
+        raise ValueError('Invalid admin password hash length')
+except ValueError:
+    ADMIN_SALT = ADMIN_DIGEST = b''
+    if ADMIN_PASSWORD_HASH:
+        logger.error('Invalid ADMIN_PASSWORD_HASH format')
 
 # YooKassa
 YOOKASSA_SHOP_ID     = config.get('yookassa', 'shop_id',        fallback='') or os.getenv('YOOKASSA_SHOP_ID', '')
@@ -425,11 +443,56 @@ async def resolve_session(token: Optional[str], pool) -> Optional[dict]:
             "created_at": row["created_at"].isoformat()}
 
 
-async def require_admin(x_session_token: Optional[str] = Header(None)) -> dict:
-    user = await resolve_session(x_session_token, app.state.pool)
-    if not user or not ADMIN_EMAIL or user["email"].lower() != ADMIN_EMAIL.lower():
-        raise HTTPException(status_code=403, detail="Доступ запрещён")
-    return user
+class AdminLogin(BaseModel):
+    username: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=1, max_length=256)
+
+
+def sign_admin_session(payload: str) -> str:
+    return hmac.new(ADMIN_DIGEST, f'admin:{ADMIN_USERNAME}:{payload}'.encode(), 'sha256').hexdigest()
+
+
+async def require_admin(request: Request) -> None:
+    token = request.cookies.get(ADMIN_SESSION_COOKIE, '')
+    if ADMIN_USERNAME and ADMIN_DIGEST and len(token) <= 128:
+        expires, _, signature = token.partition('.')
+        if expires.isascii() and expires.isdecimal() and int(expires) > time.time():
+            if secrets.compare_digest(signature.encode(), sign_admin_session(expires).encode()):
+                return
+    raise HTTPException(status_code=403, detail="Доступ запрещён")
+
+
+@app.post("/admin/login")
+async def admin_login(data: AdminLogin, response: Response):
+    if not ADMIN_USERNAME or not ADMIN_DIGEST:
+        raise HTTPException(status_code=503, detail="Вход администратора не настроен")
+
+    digest = await asyncio.to_thread(
+        hashlib.scrypt, data.password.encode(), salt=ADMIN_SALT, n=32768, r=8, p=1,
+        maxmem=64 * 1024 * 1024, dklen=32,
+    )
+    username_matches = secrets.compare_digest(data.username.encode(), ADMIN_USERNAME.encode())
+    password_matches = secrets.compare_digest(digest, ADMIN_DIGEST)
+    if not (username_matches and password_matches):
+        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+
+    expires = str(int(time.time()) + ADMIN_SESSION_SECONDS)
+    response.set_cookie(
+        ADMIN_SESSION_COOKIE, f'{expires}.{sign_admin_session(expires)}',
+        max_age=ADMIN_SESSION_SECONDS, path=ADMIN_COOKIE_PATH,
+        secure=True, httponly=True, samesite='strict',
+    )
+    response.headers['Cache-Control'] = 'no-store'
+    return {"ok": True}
+
+
+@app.post("/admin/logout")
+async def admin_logout(response: Response):
+    response.delete_cookie(
+        ADMIN_SESSION_COOKIE, path=ADMIN_COOKIE_PATH, secure=True, httponly=True, samesite='strict',
+    )
+    response.headers['Cache-Control'] = 'no-store'
+    return {"ok": True}
 
 
 # === АНАЛИТИКА (см. backend/analytics_queries.sql) ===
@@ -539,8 +602,8 @@ ANALYTICS_QUERIES = [
 ]
 
 
-@app.get("/admin/analytics")
-async def admin_analytics(admin: dict = Depends(require_admin)):
+@app.get("/admin/analytics", dependencies=[Depends(require_admin)])
+async def admin_analytics(response: Response):
     """Выполняет все аналитические запросы и возвращает результат для админ-панели."""
     sections = []
     async with app.state.pool.acquire() as conn:
@@ -551,6 +614,7 @@ async def admin_analytics(admin: dict = Depends(require_admin)):
                 "title": title,
                 "rows": [dict(r) for r in rows],
             })
+    response.headers['Cache-Control'] = 'no-store'
     return {"sections": sections}
 
 

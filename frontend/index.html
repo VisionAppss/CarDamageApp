@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Carscan — калькулятор стоимости ремонта авто по фото за 30 секунд</title>
-  <meta name="description" content="Carscan — онлайн-калькулятор ремонта автомобиля по фото. Загрузите фото после ДТП — ИИ оценит ущерб и рассчитает стоимость ремонта за 30 секунд. Бесплатно.">
+  <title>Оценка видимых повреждений кузова по фото — CarScan</title>
+  <meta name="description" content="Загрузите фото автомобиля. CarScan оценит видимые повреждения кузова и покажет ориентировочную стоимость ремонта.">
   <meta name="keywords" content="калькулятор ремонта автомобиля, калькулятор стоимости ремонта автомобиля онлайн, оценка ущерба автомобиля онлайн, ущерб после ДТП онлайн, стоимость ремонта авто по фото, анализ повреждений по фото, осмотр автомобиля ИИ, оценка повреждений автомобиля">
   <meta name="robots" content="index, follow">
   <meta name="language" content="ru">
@@ -24,7 +24,7 @@
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Carscan — калькулятор стоимости ремонта авто по фото">
-  <meta name="twitter:description" content="ИИ оценит ущерб и рассчитает стоимость ремонта по фото за 30 секунд. Анализ бесплатно, PDF-отчёт — 99 ₽.">
+  <meta name="twitter:description" content="ИИ оценит ущерб и рассчитает стоимость ремонта по фото. Анализ бесплатно, PDF-отчёт — 99 ₽.">
   <meta name="twitter:image" content="https://car-scan.ru/icons/og-image.png">
 
   <!-- Favicon -->
@@ -56,7 +56,7 @@
     "@context": "https://schema.org",
     "@type": "FAQPage",
     "mainEntity": [
-      {"@type": "Question", "name": "Как оценить ущерб автомобиля после ДТП онлайн?", "acceptedAnswer": {"@type": "Answer", "text": "Загрузите фотографию повреждённого автомобиля на сайте Carscan. ИИ автоматически определит все повреждения и рассчитает стоимость ремонта за 30 секунд."}},
+      {"@type": "Question", "name": "Как оценить ущерб автомобиля после ДТП онлайн?", "acceptedAnswer": {"@type": "Answer", "text": "Загрузите фотографию повреждённого автомобиля на сайте Carscan. ИИ автоматически определит все повреждения и рассчитает стоимость ремонта."}},
       {"@type": "Question", "name": "Сколько стоит оценка повреждений автомобиля?", "acceptedAnswer": {"@type": "Answer", "text": "Анализ повреждений бесплатно. PDF-отчёт — 99 ₽ (разовый платёж). Сервис использует ИИ для автоматической оценки без выезда эксперта."}},
       {"@type": "Question", "name": "Насколько точна оценка повреждений по фото?", "acceptedAnswer": {"@type": "Answer", "text": "Carscan использует нейросетевую модель с точностью анализа до 85%. Результат носит предварительный характер."}},
       {"@type": "Question", "name": "Можно ли использовать результат для страховой компании?", "acceptedAnswer": {"@type": "Answer", "text": "Оценка Carscan носит информационный характер. Для страховой выплаты требуется официальная экспертиза."}}
@@ -1260,112 +1260,6 @@
     }
     .add-more-btn:hover { border-color: rgba(255,255,255,0.5); color: #fff; }
 
-    /* ── Форма обратной связи ── */
-    .feedback-section {
-      margin-top: 48px;
-      border-top: 1px solid var(--border);
-      padding-top: 32px;
-    }
-    .feedback-title {
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--black);
-      margin-bottom: 6px;
-    }
-    .feedback-sub {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 20px;
-    }
-    .feedback-type-row {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-bottom: 14px;
-    }
-    .feedback-type-btn {
-      padding: 6px 14px;
-      font-family: inherit;
-      font-size: 12px;
-      border: 1px solid var(--border-strong);
-      background: none;
-      cursor: pointer;
-      color: var(--black);
-      transition: background 0.15s;
-    }
-    .feedback-type-btn.active {
-      background: var(--black);
-      color: var(--white);
-    }
-    .feedback-textarea {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid var(--border-strong);
-      font-family: inherit;
-      font-size: 13px;
-      resize: vertical;
-      min-height: 96px;
-      outline: none;
-      color: var(--black);
-      background: var(--white);
-      margin-bottom: 10px;
-    }
-    .feedback-textarea:focus {
-      outline: 2px solid var(--black);
-      outline-offset: -2px;
-    }
-    .feedback-textarea::placeholder { color: #bbb; }
-    .feedback-row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .feedback-email-input {
-      flex: 1;
-      padding: 10px 12px;
-      border: 1px solid var(--border-strong);
-      font-family: inherit;
-      font-size: 13px;
-      outline: none;
-      color: var(--black);
-      background: var(--white);
-      min-width: 0;
-    }
-    .feedback-email-input:focus {
-      outline: 2px solid var(--black);
-      outline-offset: -2px;
-    }
-    .feedback-email-input::placeholder { color: #bbb; }
-    .feedback-submit {
-      padding: 10px 20px;
-      background: var(--black);
-      color: var(--white);
-      border: none;
-      font-family: inherit;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background 0.15s;
-      flex-shrink: 0;
-    }
-    .feedback-submit:hover { background: #333; }
-    .feedback-submit:disabled { background: #999; cursor: default; }
-    .feedback-success {
-      display: none;
-      font-size: 13px;
-      color: #10b981;
-      margin-top: 10px;
-    }
-    .feedback-success.visible { display: block; }
-    .feedback-error {
-      display: none;
-      font-size: 12px;
-      color: #ef4444;
-      margin-top: 6px;
-    }
-    .feedback-error.visible { display: block; }
-
     /* ── Скрипт для продавца ── */
     .seller-script {
       background: #fff8f8;
@@ -1495,7 +1389,7 @@
     <div class="header-inner">
       <div>
         <div class="logo">Car<span>scan</span></div>
-        <h1 class="tagline">Калькулятор ремонта автомобиля по фото за 30 секунд</h1>
+        <h1 class="tagline">Оценка видимых повреждений кузова по фото</h1>
       </div>
       <div class="header-actions">
         <button class="btn-ghost" id="printBtn" onclick="downloadPDF()" style="display:none">Скачать PDF</button>
@@ -1593,7 +1487,7 @@
   <!--
   <div class="save-banner" id="saveBanner">
     <div class="save-banner-title">Сохраните результат</div>
-    <div class="save-banner-sub">Войдите через email — результат сохранится в личном кабинете. Бесплатно, 30 секунд.</div>
+    <div class="save-banner-sub">Войдите через email — результат сохранится в личном кабинете. Бесплатно.</div>
     <button class="save-banner-btn" onclick="saveAndGoAuth()">Сохранить результат →</button>
     <button class="save-banner-skip" onclick="document.getElementById('saveBanner').classList.remove('visible')">Пропустить</button>
   </div>
@@ -1627,31 +1521,6 @@
   <div class="services-wrap" id="servicesWrap" style="display:none!important"></div>
 
 
-
-  <!-- Форма обратной связи -->
-  <div class="feedback-section">
-    <div class="feedback-title">Обратная связь</div>
-    <div class="feedback-sub">Расскажите что работает не так, чего не хватает, или попросите открыть доступ к новым типам анализа</div>
-
-    <div class="feedback-type-row">
-      <button class="feedback-type-btn active" onclick="setFeedbackType(this, 'bug')">Ошибка</button>
-      <button class="feedback-type-btn" onclick="setFeedbackType(this, 'idea')">Идея</button>
-      <button class="feedback-type-btn" onclick="setFeedbackType(this, 'access')">Открыть доступ</button>
-      <button class="feedback-type-btn" onclick="setFeedbackType(this, 'other')">Другое</button>
-    </div>
-
-    <textarea class="feedback-textarea" id="feedbackText"
-      placeholder="Опишите проблему или предложение..."></textarea>
-
-    <div class="feedback-row">
-      <input class="feedback-email-input" id="feedbackEmail" type="email"
-        placeholder="Email для ответа (необязательно)">
-      <button class="feedback-submit" id="feedbackSubmit" onclick="submitFeedback()">Отправить</button>
-    </div>
-
-    <div class="feedback-success" id="feedbackSuccess">Спасибо! Мы получили ваше сообщение и ответим на email если он указан.</div>
-    <div class="feedback-error" id="feedbackError">Не удалось отправить. Попробуйте ещё раз.</div>
-  </div>
 
   <div class="footnote">
     Оценка носит предварительный характер.<br>
@@ -1741,7 +1610,6 @@
   // payment_success   → оплата подтверждена
   // cabinet_opened    → открыт личный кабинет
   // history_analysis_opened → открыт старый анализ
-  // feedback_sent     → отправлена обратная связь
   // logout            → выход из аккаунта
 
   // ── Auth ──
@@ -1776,8 +1644,6 @@
     document.getElementById('userBar').classList.add('visible');
     const guestBar = document.getElementById('guestBar');
     if (guestBar) guestBar.style.display = 'none';
-    const fbEmail = document.getElementById('feedbackEmail');
-    if (fbEmail && currentUser?.email) fbEmail.placeholder = currentUser.email;
     document.getElementById('userEmail').textContent = currentUser.email;
     updateAnalysesBadge();
 
@@ -2967,13 +2833,9 @@
           <div class="popup-about-sub">Анализ повреждений автомобиля</div>
         </div>
 
-        <p><strong>Carscan</strong> — онлайн-сервис для автоматической оценки повреждений автомобиля по фотографии. Нейросеть анализирует снимок, определяет все видимые дефекты кузова и рассчитывает стоимость ремонта за 30 секунд.</p>
+        <p><strong>Carscan</strong> — онлайн-сервис для автоматической оценки повреждений автомобиля по фотографии. Нейросеть анализирует снимок, определяет все видимые дефекты кузова и рассчитывает стоимость ремонта.</p>
 
         <div class="popup-stat-row">
-          <div class="popup-stat">
-            <div class="popup-stat-val">30 с</div>
-            <div class="popup-stat-label">время анализа</div>
-          </div>
           <div class="popup-stat">
             <div class="popup-stat-val">85%</div>
             <div class="popup-stat-label">точность</div>
@@ -3227,71 +3089,6 @@
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closePopup();
   });
-
-  // ── Форма обратной связи ──
-  let feedbackType = 'bug';
-
-  function setFeedbackType(btn, type) {
-    feedbackType = type;
-    document.querySelectorAll('.feedback-type-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-
-    const placeholders = {
-      bug: 'Опишите что пошло не так, на каком шаге возникла проблема...',
-      idea: 'Поделитесь идеей — что добавить или улучшить...',
-      access: 'Укажите какой тип анализа нужен: осмотр при покупке, корпоративный флот, каршеринг...',
-      other: 'Напишите что хотели бы сказать...',
-    };
-    document.getElementById('feedbackText').placeholder = placeholders[type] || placeholders.other;
-  }
-
-  async function submitFeedback() {
-    const text = document.getElementById('feedbackText').value.trim();
-    const emailInput = document.getElementById('feedbackEmail').value.trim();
-    // Если email не указан — берём email авторизованного пользователя
-    const email = emailInput || currentUser?.email || null;
-    const btn = document.getElementById('feedbackSubmit');
-    const success = document.getElementById('feedbackSuccess');
-    const error = document.getElementById('feedbackError');
-
-    if (!text) {
-      document.getElementById('feedbackText').focus();
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Отправляем...';
-    success.classList.remove('visible');
-    error.classList.remove('visible');
-
-    try {
-      const res = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: feedbackType,
-          text,
-          email,
-          user_id: currentUser?.id || null,
-          url: window.location.href,
-        })
-      });
-
-      if (res.ok) {
-        success.classList.add('visible');
-        document.getElementById('feedbackText').value = '';
-        document.getElementById('feedbackEmail').value = '';
-        track('feedback_sent', { type: feedbackType });
-      } else {
-        throw new Error('Server error');
-      }
-    } catch(e) {
-      error.classList.add('visible');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Отправить';
-    }
-  }
 
   // ── Promo → main: читаем файл из IndexedDB ──
   function loadPromoFile() {
