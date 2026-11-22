@@ -822,7 +822,21 @@ async def analyze_image(
 ):
     """Анализ фото. Гость — без токена, авторизованный — с x-session-token."""
     current_user = await resolve_session(x_session_token, app.state.pool)
+    return await run_analysis(file, inspection_type, current_user=current_user)
 
+
+@app.post("/admin/analyze", dependencies=[Depends(require_admin)])
+async def admin_analyze_image(
+    file: UploadFile = File(...),
+    inspection_type: str = Form(default="страховой случай"),
+):
+    return await run_analysis(file, inspection_type, full_report=True)
+
+
+async def run_analysis(
+    file: UploadFile, inspection_type: str,
+    *, current_user: Optional[dict] = None, full_report: bool = False,
+):
     # Валидация файла
     allowed_types = ['image/jpeg', 'image/png', 'image/webp']
     if file.content_type not in allowed_types:
@@ -917,6 +931,12 @@ async def analyze_image(
         "processed_at": datetime.now().isoformat(),
         "filename": filename
     }
+
+    if full_report:
+        return JSONResponse(
+            {**result, "report_unlocked": True},
+            headers={"Cache-Control": "no-store"},
+        )
 
     damages = result_data.get("damages") or []
     report_id = uuid.uuid4()

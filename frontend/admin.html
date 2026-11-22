@@ -28,6 +28,8 @@
   th { color: #888; font-weight: 500; }
   tr:last-child td { border-bottom: none; }
   .empty { color: #aaa; font-size: 13px; padding: 8px 0; }
+  .analysis-panel { margin-bottom: 20px; }
+  .analysis-frame { display: block; width: 100%; min-height: 420px; border: 0; }
   button {
     font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid #ddd;
     background: #fff; cursor: pointer;
@@ -84,10 +86,35 @@
 </div>
 
 <div id="state" hidden></div>
+<section class="card analysis-panel" id="analysisPanel" aria-labelledby="analysisTitle" hidden>
+  <h2 id="analysisTitle">Проверить автомобиль по фото</h2>
+  <iframe class="analysis-frame" id="analysisFrame" title="Загрузка фото и анализ автомобиля"></iframe>
+</section>
 <div class="grid" id="grid"></div>
 
 <script>
 var AdminAuth = (function () {
+  var analysisPanel = document.getElementById('analysisPanel');
+  var analysisFrame = document.getElementById('analysisFrame');
+  var analysisObserver;
+  analysisFrame.addEventListener('load', function () {
+    if (analysisObserver) analysisObserver.disconnect();
+    var content = analysisFrame.contentDocument?.querySelector('.page');
+    if (!content || analysisPanel.hidden) return;
+    function resize() {
+      analysisFrame.style.height = Math.ceil(content.getBoundingClientRect().bottom) + 24 + 'px';
+    }
+    analysisObserver = new ResizeObserver(resize);
+    analysisObserver.observe(content);
+    resize();
+  });
+
+  function showAnalysis() {
+    if (!analysisPanel.hidden) return;
+    analysisPanel.hidden = false;
+    analysisFrame.src = '/?admin=1';
+  }
+
   function setLoginMsg(text, kind) {
     var el = document.getElementById('loginMsg');
     el.textContent = text || '';
@@ -95,6 +122,9 @@ var AdminAuth = (function () {
   }
 
   function showLogin() {
+    analysisPanel.hidden = true;
+    if (analysisObserver) analysisObserver.disconnect();
+    analysisFrame.removeAttribute('src');
     document.getElementById('loginBox').hidden = false;
     document.getElementById('logoutBtn').hidden = true;
     document.getElementById('state').hidden = true;
@@ -146,7 +176,7 @@ var AdminAuth = (function () {
     }
   }
 
-  return { showLogin: showLogin, logout: logout };
+  return { showLogin: showLogin, showAnalysis: showAnalysis, logout: logout };
 })();
 
 var Dashboard = (function () {
@@ -199,6 +229,8 @@ var Dashboard = (function () {
     }
 
     var data = await res.json();
+    if (document.getElementById('logoutBtn').hidden) return;
+    AdminAuth.showAnalysis();
     setState('', false);
     document.getElementById('ts').textContent = 'Обновлено: ' + new Date().toLocaleString('ru-RU');
 

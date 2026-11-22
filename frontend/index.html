@@ -770,6 +770,7 @@
     .report-teaser-skeleton i:nth-child(2) { width: 80%; }
     .report-teaser-content { position: relative; display: grid; justify-items: center; gap: 10px; padding: 18px; text-align: center; background: rgba(255, 255, 255, .86); }
     .report-teaser-content span, .report-teaser-content small { color: var(--muted); }
+    .admin-analysis .footnote { display: none; }
 
     .paywall {
       display: none;
@@ -1557,6 +1558,7 @@
 
 <script>
   // ── Session token ──
+  const adminAnalysis = new URLSearchParams(location.search).get('admin') === '1';
   function getSessionToken() { try { return localStorage.getItem('ao_session'); } catch(e) { return null; } }
   function sessionHeaders() { const t = getSessionToken(); return t ? { 'x-session-token': t } : {}; }
 
@@ -1569,6 +1571,7 @@
   // ── Analytics ──────────────────────────────────────────────
   // Отправляет событие в Яндекс Метрику и сохраняет в Supabase
   async function track(event, params = {}) {
+    if (adminAnalysis) return;
     // Яндекс Метрика — reachGoal для всех событий
     if (window.ym) {
       ym(108345172, 'reachGoal', event, params);
@@ -1621,6 +1624,10 @@
   // ── Auth ──
   async function initAuth() {
     document.body.style.visibility = 'visible';
+    if (adminAnalysis) {
+      document.body.classList.add('admin-analysis');
+      return;
+    }
     const token = getSessionToken();
     if (!token) {
       await checkPaymentReturn();
@@ -1957,14 +1964,17 @@
     const timer = setInterval(() => { if (step < 4) setStep(++step); }, 1800);
 
     try {
-      const res = await fetch('/api/analyze', {
+      const res = await fetch(adminAnalysis ? '/api/admin/analyze' : '/api/analyze', {
         method: 'POST',
         body: fd,
-        headers: sessionHeaders()
+        headers: adminAnalysis ? {} : sessionHeaders()
       });
       clearInterval(timer);
 
       if (!res.ok) {
+        if (adminAnalysis && res.status === 403) {
+          throw new Error('Войдите в админку снова и повторите анализ.');
+        }
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || 'Ошибка сервера ' + res.status);
       }
@@ -1983,7 +1993,7 @@
 
       renderResult(json);
       // Показываем баннер сохранения для незарегистрированных
-      if (!currentUser) {
+      if (!adminAnalysis && !currentUser) {
         const sb = document.getElementById('saveBanner');
         if (sb) sb.classList.add('visible');
       }
@@ -2008,6 +2018,7 @@
   }
 
   function isReportUnlocked(result) {
+    if (adminAnalysis) return result?.report_unlocked === true;
     if (result?.report_id) return result.report_unlocked === true;
     return !!sessionStorage.getItem('ao_pdf_paid') || (currentProfile?.pdf_credits || 0) >= 1;
   }
@@ -3122,6 +3133,7 @@
     initAuth();
 
     // Если пришли с /promo с уже выбранным файлом — загружаем его
+    if (adminAnalysis) return;
     loadPromoFile().then(file => {
       if (!file) return;
       handleFiles([file]);
@@ -3240,9 +3252,9 @@
       pdf.save(`avtoskan-report-${dateStr}.pdf`);
 
       // Списываем оплату после скачивания
-      if (!lastAnalysisResult?.report_id && sessionStorage.getItem('ao_pdf_paid')) {
+      if (!adminAnalysis && !lastAnalysisResult?.report_id && sessionStorage.getItem('ao_pdf_paid')) {
         sessionStorage.removeItem('ao_pdf_paid');
-      } else if (!lastAnalysisResult?.report_id && currentProfile) {
+      } else if (!adminAnalysis && !lastAnalysisResult?.report_id && currentProfile) {
         currentProfile = { ...currentProfile, pdf_credits: Math.max((currentProfile.pdf_credits || 0) - 1, 0) };
         updateAnalysesBadge();
       }
@@ -3257,7 +3269,7 @@
   }
 
   function resetForm() {
-    sessionStorage.removeItem('ao_open_report');
+    if (!adminAnalysis) sessionStorage.removeItem('ao_open_report');
     lastAnalysisResult = null;
     removeFile();
     hideError();
