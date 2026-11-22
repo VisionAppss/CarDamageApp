@@ -32,8 +32,10 @@ services:
     volumes:
       - ./backend/config.ini:/app/config.ini:ro
       - ./uploads:/app/uploads
+      - ./backend/price-data:/app/price-data:ro
     environment:
       - UPLOAD_DIR=/app/uploads
+      - CARSCAN_PARTS_MAX_AGE_HOURS=${CARSCAN_PARTS_MAX_AGE_HOURS:-24}
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=avtootsenka

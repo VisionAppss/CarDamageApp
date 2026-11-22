@@ -1,5 +1,6 @@
 uploads/
 backend/config.ini
+backend/price-data/
 __pycache__/
 *.pyc
 .env

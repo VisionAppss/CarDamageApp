@@ -777,6 +777,12 @@
     .listing-import small { color: var(--muted); }
     .repair-options { padding-left: 18px; margin: 10px 0; }
     .repair-options li + li { margin-top: 8px; }
+    .part-price { margin-top: 12px; padding: 10px 12px; background: #f4f4f1; }
+    .part-price p { margin: 0 0 6px; }
+    .part-price summary { cursor: pointer; }
+    .part-quote { display: grid; gap: 8px; margin-top: 8px; }
+    .part-quote input:not([type="checkbox"]) { display: block; width: 100%; padding: 7px; border: 1px solid var(--border); font: inherit; }
+    .parts-note { padding: 8px 0 0; color: var(--muted); font-size: 12px; }
 
     .paywall {
       display: none;
@@ -1506,6 +1512,11 @@
 
   <!-- Result -->
   <div class="result-wrap" id="resultWrap"></div>
+  <datalist id="partsVehicles">
+    <option value="Ford Focus II">
+    <option value="Kia Rio III">
+    <option value="Toyota Camry XV50">
+  </datalist>
 
   <!-- Баннер для гостей — временно скрыт (регистрация отключена) -->
   <!--
@@ -2083,6 +2094,57 @@
     return !!sessionStorage.getItem('ao_pdf_paid') || (currentProfile?.pdf_credits || 0) >= 1;
   }
 
+  function partPriceForm() {
+    return `<div class="part-price">
+      <p class="part-price-status" role="status">Цена детали не подтверждена</p>
+      <details>
+        <summary>Проверить цену по OEM</summary>
+        <form class="part-quote">
+          <label>Автомобиль по каталогу <input name="vehicle" list="partsVehicles" maxlength="120" required></label>
+          <label>OEM детали <input name="oem" maxlength="60" required></label>
+          <label><input type="checkbox" name="fitment" required> OEM этой детали подтверждён по VIN или каталогу для моей комплектации</label>
+          <button class="btn-outline" type="submit">Проверить наличие и цену</button>
+        </form>
+      </details>
+    </div>`;
+  }
+
+  async function checkPartPrice(event) {
+    const form = event.target.closest('.part-quote');
+    if (!form) return;
+    event.preventDefault();
+    const status = form.closest('.part-price').querySelector('.part-price-status');
+    const button = form.querySelector('button');
+    const fields = new FormData(form);
+    button.disabled = true;
+    status.textContent = 'Проверяем прайс…';
+    try {
+      const response = await fetch('/api/parts/quote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vehicle: fields.get('vehicle'),
+          oem: fields.get('oem'),
+          fitment_confirmed: fields.has('fitment')
+        })
+      });
+      if (!response.ok) throw new Error();
+      const { quote, message } = await response.json();
+      status.textContent = message || [
+        fmt(Number(quote.price_rub), 2),
+        quote.price_type === 'wholesale' ? 'оптовая цена' : 'розничная цена',
+        quote.warehouse + ' · в наличии на дату снимка',
+        quote.snapshot_moscow.slice(0, 16).replace('T', ' ') + ' МСК',
+        'артикул ' + quote.supplier_sku,
+        quote.source
+      ].filter(Boolean).join(' · ');
+    } catch {
+      status.textContent = 'Цена детали не подтверждена';
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   // ── Render result ──
   function renderResult(json) {
     // Поддержка разных форматов: {success,data:{...}} / {data:{...}} / {vehicle,damages,...}
@@ -2169,9 +2231,10 @@
                   <div>${esc(option.condition)}</div>
                 </li>`).join('')}
               </ul>` : `<div class="dmg-cost-row">
-                <div class="dmg-cost-label">Стоимость ремонта</div>
+                <div class="dmg-cost-label">${json.estimate_excludes_parts ? 'Стоимость работ' : 'Стоимость ремонта'}</div>
                 <div class="dmg-cost-value">${d.estimated_cost_rub ? fmtRange(d.estimated_cost_rub.min, d.estimated_cost_rub.max) : 'Уточняется после осмотра'}</div>
-              </div>`}` : ''}
+              </div>`}
+              ${d.repair_method === 'замена детали' ? partPriceForm() : ''}` : ''}
           </div>`;
       });
     }
@@ -2199,6 +2262,7 @@
         <div class="summary-row"><span class="sum-label">Очный осмотр</span><span class="sum-value">${summary.requires_in_person_inspection ? 'Рекомендуется' : 'Не требуется'}</span></div>
         <div class="summary-row"><span class="sum-label">Уверенность анализа</span><span class="sum-value">${meta.analysis_confidence != null ? meta.analysis_confidence + "%" : "—"}</span></div>
         <div class="summary-row total"><span class="sum-label">Ориентир по стоимости</span><span class="sum-total">${summary.total_estimated_cost ? fmtRange(summary.total_estimated_cost.min, summary.total_estimated_cost.max) : "Уточняется после осмотра"}</span></div>
+        ${json.estimate_excludes_parts ? '<p class="parts-note">Ориентир включает работы. Стоимость деталей и материалов в него не входит.</p>' : ''}
       </div>`;
     }
 
@@ -2254,8 +2318,8 @@
     return d.innerHTML;
   }
 
-  function fmt(n) {
-    return new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB', maximumFractionDigits:0 }).format(n);
+  function fmt(n, maximumFractionDigits = 0) {
+    return new Intl.NumberFormat('ru-RU', { style:'currency', currency:'RUB', minimumFractionDigits: 0, maximumFractionDigits }).format(n);
   }
   function fmtRange(a, b) { return `${fmt(a)} — ${fmt(b)}`; }
   function formatSize(b) {
@@ -3174,6 +3238,7 @@
     errorBox      = document.getElementById('errorBox');
     errorText     = document.getElementById('errorText');
     resultWrap    = document.getElementById('resultWrap');
+    resultWrap.addEventListener('submit', checkPartPrice);
     inspectionType = document.getElementById('inspectionType');
 
     // Upload events
@@ -3242,6 +3307,7 @@
           // Скрываем кнопки действий в клоне для чистого PDF
           const actionRow = doc.querySelector('.action-row');
           if (actionRow) actionRow.style.display = 'none';
+          doc.querySelectorAll('.part-price details').forEach(details => { details.style.display = 'none'; });
 
           // Вставляем блок с фото и типом осмотра в начало resultWrap
           const rw = doc.getElementById('resultWrap');

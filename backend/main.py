@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field, field_validator
 import yookassa
 from yookassa import Configuration as YKConfig, Payment as YKPayment
 from avito import ListingImportError, MAX_PHOTOS, PHOTO_TYPES, import_listing_photos
+from parts_catalog import UNCONFIRMED_PRICE, find_quote
 
 
 # === КОНФИГУРАЦИЯ ===
@@ -60,6 +61,7 @@ SMTP_FROM = config.get('smtp', 'from',     fallback=SMTP_USER)
 
 UPLOAD_DIR = Path(os.getenv('UPLOAD_DIR', '/app/uploads'))
 UPLOAD_DIR.mkdir(exist_ok=True)
+PARTS_CSV = Path(os.getenv("CARSCAN_PARTS_CSV", "/app/price-data/autobody.csv"))
 
 ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', '')
 ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH', '')
@@ -209,6 +211,12 @@ class SendCodeRequest(BaseModel):
 class ListingPhotoRequest(BaseModel):
     url: str = Field(min_length=1, max_length=2048)
 
+
+class PartPriceRequest(BaseModel):
+    vehicle: str = Field(min_length=1, max_length=120)
+    oem: str = Field(min_length=1, max_length=60)
+    fitment_confirmed: Literal[True]
+
 class VerifyCodeRequest(BaseModel):
     email: str
     code: str
@@ -228,7 +236,7 @@ Allowed values:
 - For dents, provide separate conditional estimates for PDR if the paint is intact and the crease can be removed, and straightening with paint if inspection indicates it is necessary. For corrosion, recommend cleaning and inspection first, followed conditionally by treatment and paint for superficial corrosion or metal repair if there is perforation or loss of strength.
 - For dents and corrosion use only repair_estimates, with null if a price range cannot be justified. These scenarios are alternatives, never add them together.
 
-Costs in RUB: polish 2000-8000, PDR 3000-15000, paint 8000-25000, replace 15000-60000, glass 10000-40000.
+Costs in RUB: polish 2000-8000, PDR 3000-15000, paint 8000-25000. Estimate repair labor only. For replacement, do not estimate the cost of the part or include it in the labor range. Never guess an OEM code.
 
 Return this JSON structure:
 {
@@ -384,6 +392,7 @@ def normalize_damage(d: dict) -> dict:
     # repair_method: нормализуем на русский
     method_map = {
         'replacement': 'замена детали',
+        'replace': 'замена детали',
         'polish': 'полировка',
         'polishing': 'полировка',
         'pdr': 'PDR',
@@ -882,6 +891,20 @@ async def listing_photos(data: ListingPhotoRequest):
     return JSONResponse({"photos": photos}, headers={"Cache-Control": "no-store"})
 
 
+@app.post("/parts/quote")
+async def parts_quote(data: PartPriceRequest, response: Response):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        max_age = int(os.getenv("CARSCAN_PARTS_MAX_AGE_HOURS", "24"))
+        quote = await asyncio.to_thread(
+            find_quote, PARTS_CSV, vehicle=data.vehicle, oem=data.oem,
+            now=datetime.now().astimezone(), max_age_hours=max_age,
+        ) if max_age > 0 else None
+    except (OSError, UnicodeError, ValueError):
+        quote = None
+    return {"quote": quote, "message": None if quote else UNCONFIRMED_PRICE}
+
+
 @app.post("/analyze")
 async def analyze_image(
     file: UploadFile = File(...),
@@ -1011,6 +1034,7 @@ async def run_analysis(
         "processed_at": datetime.now().isoformat(),
         "filename": filename,
         "inspection_type": inspection_type,
+        "estimate_excludes_parts": True,
     }
 
     if full_report:
