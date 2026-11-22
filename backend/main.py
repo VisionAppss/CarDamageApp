@@ -81,7 +81,7 @@ except ValueError:
 YOOKASSA_SHOP_ID     = config.get('yookassa', 'shop_id',        fallback='') or os.getenv('YOOKASSA_SHOP_ID', '')
 YOOKASSA_SECRET      = config.get('yookassa', 'secret_key',     fallback='') or os.getenv('YOOKASSA_SECRET_KEY', '')
 YOOKASSA_ANALYSIS_PRICE = config.get('yookassa', 'analysis_price', fallback='149.00') or os.getenv('YOOKASSA_ANALYSIS_PRICE', '149.00')
-YOOKASSA_PDF_PRICE   = config.get('yookassa', 'pdf_price',      fallback='99.00')  or os.getenv('YOOKASSA_PDF_PRICE', '99.00')
+REPORT_PRICE = "100.00"
 YOOKASSA_RETURN_URL  = config.get('yookassa', 'return_url',     fallback='https://car-scan.ru/')
 
 if YOOKASSA_SHOP_ID and YOOKASSA_SECRET:
@@ -186,6 +186,13 @@ class PaymentCreateRequest(BaseModel):
     user_id: Optional[str] = None
     type: str = "pdf"
     customer_email: Optional[str] = None
+    report_id: Optional[uuid.UUID] = None
+    checkout_id: Optional[uuid.UUID] = None
+
+
+class ReportAccessRequest(BaseModel):
+    report_id: uuid.UUID
+    payment_id: Optional[str] = None
 
 class SendCodeRequest(BaseModel):
     email: str
@@ -291,6 +298,14 @@ async def startup():
         database=DB_NAME, user=DB_USER, password=DB_PASS,
         min_size=2, max_size=10
     )
+    async with app.state.pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS analysis_reports (
+                id UUID PRIMARY KEY,
+                result JSONB NOT NULL,
+                paid_at TIMESTAMPTZ
+            )
+        """)
 
 
 @app.on_event("shutdown")
@@ -738,15 +753,19 @@ async def get_profile(user_id: str):
 
 
 @app.get("/profile/{user_id}/analyses")
-async def get_analyses(user_id: str, limit: int = 20):
+async def get_analyses(user_id: str, limit: int = 20, x_session_token: Optional[str] = Header(None)):
     """История анализов пользователя."""
+    user = await resolve_session(x_session_token, app.state.pool)
+    if not user or user["id"] != user_id:
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
     async with app.state.pool.acquire() as conn:
         rows = await conn.fetch("""
-            SELECT id, created_at, inspection_type, photo_name, result,
-                   photo_data, photo_mime
-            FROM analyses
-            WHERE user_id = $1
-            ORDER BY created_at DESC
+            SELECT a.id, a.created_at, a.inspection_type, a.photo_name,
+                   COALESCE(r.result, a.result) AS result, a.photo_data, a.photo_mime
+            FROM analyses a
+            LEFT JOIN analysis_reports r ON r.id::text = a.result->>'report_id' AND r.paid_at IS NOT NULL
+            WHERE a.user_id = $1
+            ORDER BY a.created_at DESC
             LIMIT $2
         """, user_id, limit)
     analyses = []
@@ -899,19 +918,41 @@ async def analyze_image(
         "filename": filename
     }
 
-    if current_user:
-        async with app.state.pool.acquire() as conn:
+    damages = result_data.get("damages") or []
+    report_id = uuid.uuid4()
+    result.update(report_id=str(report_id), report_unlocked=True)
+    preview = {
+        **result,
+        "report_unlocked": False,
+        "damage_count": len(damages),
+        "data": {
+            "vehicle": result_data.get("vehicle"),
+            "damages": [
+                {key: damages[0].get(key) for key in ("type", "location", "severity")}
+            ] if damages else [],
+            "meta": {
+                key: (result_data.get("meta") or {}).get(key)
+                for key in ("photo_quality", "missing_angles", "analysis_confidence")
+            },
+        },
+    }
+    async with app.state.pool.acquire() as conn, conn.transaction():
+        await conn.execute(
+            "INSERT INTO analysis_reports (id, result) VALUES ($1, $2)",
+            report_id, json.dumps(result),
+        )
+        if current_user:
             await conn.execute("""
                 INSERT INTO analyses (user_id, result, photo_name, inspection_type, photo_data, photo_mime)
                 VALUES ($1, $2, $3, $4, $5, $6)
-            """, current_user["id"], json.dumps(result), file.filename, inspection_type,
+            """, current_user["id"], json.dumps(preview), file.filename, inspection_type,
                  base64_image, file.content_type)
             await conn.execute(
                 "UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1",
                 current_user["id"]
             )
 
-    return JSONResponse(result)
+    return JSONResponse(preview, headers={"Cache-Control": "no-store"})
 
 
 class AnalysisSaveRequest(BaseModel):
@@ -922,8 +963,11 @@ class AnalysisSaveRequest(BaseModel):
 
 
 @app.post("/analysis/save")
-async def save_pending_analysis(data: AnalysisSaveRequest):
+async def save_pending_analysis(data: AnalysisSaveRequest, x_session_token: Optional[str] = Header(None)):
     """Сохраняет результат анализа, сделанного гостем, после его авторизации."""
+    user = await resolve_session(x_session_token, app.state.pool)
+    if not user or user["id"] != data.user_id:
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
     async with app.state.pool.acquire() as conn:
         profile = await conn.fetchrow(
             "SELECT email FROM profiles WHERE id = $1",
@@ -952,19 +996,31 @@ async def create_payment(data: PaymentCreateRequest):
         raise HTTPException(status_code=503, detail="Оплата временно недоступна")
 
     ptype = "pdf"
-    price = YOOKASSA_PDF_PRICE
-    desc  = "Скачивание PDF-отчёта об оценке повреждений автомобиля"
+    price = REPORT_PRICE
+    desc = "Полный отчёт об оценке повреждений автомобиля"
+    metadata = {"user_id": data.user_id or "", "type": ptype}
+    if data.report_id:
+        async with app.state.pool.acquire() as conn:
+            report = await conn.fetchrow("SELECT paid_at FROM analysis_reports WHERE id = $1", data.report_id)
+        if report is None:
+            raise HTTPException(status_code=404, detail="Отчёт не найден")
+        if report["paid_at"]:
+            raise HTTPException(status_code=409, detail="Отчёт уже оплачен")
+        metadata.update(type="report", report_id=str(data.report_id), user_id="")
 
     idempotency_key = str(uuid.uuid4())
+    if data.report_id and data.checkout_id:
+        idempotency_key = str(uuid.uuid5(data.report_id, str(data.checkout_id)))
     payment_body = {
         "amount": {"value": price, "currency": "RUB"},
         "confirmation": {
             "type": "redirect",
             "return_url": YOOKASSA_RETURN_URL.rstrip('/') + "/?payment=success"
+                          + (f"&report_id={data.report_id}" if data.report_id else "")
         },
         "capture": True,
         "description": desc,
-        "metadata": {"user_id": data.user_id or "", "type": ptype},
+        "metadata": metadata,
     }
     if data.customer_email:
         payment_body["receipt"] = {
@@ -979,11 +1035,11 @@ async def create_payment(data: PaymentCreateRequest):
             }]
         }
     try:
-        payment = YKPayment.create(payment_body, idempotency_key)
+        payment = await asyncio.to_thread(YKPayment.create, payment_body, idempotency_key)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Ошибка ЮКасса: {e}")
 
-    if data.user_id:
+    if data.user_id and not data.report_id:
         async with app.state.pool.acquire() as conn:
             await conn.execute("""
                 INSERT INTO payments (id, user_id, status, amount, type)
@@ -995,6 +1051,36 @@ async def create_payment(data: PaymentCreateRequest):
         "payment_id": payment.id,
         "confirmation_url": payment.confirmation.confirmation_url
     }
+
+
+@app.post("/report/access")
+async def access_report(data: ReportAccessRequest):
+    async with app.state.pool.acquire() as conn:
+        row = await conn.fetchrow("SELECT result, paid_at FROM analysis_reports WHERE id = $1", data.report_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Отчёт не найден")
+    if not row["paid_at"]:
+        if not data.payment_id:
+            raise HTTPException(status_code=402, detail="Отчёт не оплачен")
+        if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET:
+            raise HTTPException(status_code=503, detail="Проверка оплаты временно недоступна")
+        try:
+            payment = await asyncio.to_thread(YKPayment.find_one, data.payment_id)
+        except Exception:
+            raise HTTPException(status_code=502, detail="Не удалось проверить оплату")
+        metadata = payment.metadata or {}
+        if metadata.get("type") != "report" or metadata.get("report_id") != str(data.report_id):
+            raise HTTPException(status_code=403, detail="Платёж относится к другому отчёту")
+        if payment.status == "canceled":
+            raise HTTPException(status_code=409, detail="Платёж отменён")
+        if (payment.status != "succeeded" or not payment.paid
+                or payment.amount.currency != "RUB" or payment.amount.value != REPORT_PRICE):
+            raise HTTPException(status_code=402, detail="Оплата пока не подтверждена")
+        async with app.state.pool.acquire() as conn:
+            await conn.execute(
+                "UPDATE analysis_reports SET paid_at = NOW() WHERE id = $1 AND paid_at IS NULL", data.report_id,
+            )
+    return JSONResponse(json.loads(row["result"]), headers={"Cache-Control": "no-store"})
 
 
 @app.post("/payment/webhook")
@@ -1011,6 +1097,13 @@ async def payment_webhook(request: Request):
     if event == "payment.succeeded":
         payment_id = obj.get("id")
         meta       = obj.get("metadata", {})
+        if meta.get("type") == "report":
+            try:
+                checkout = ReportAccessRequest(report_id=meta.get("report_id"), payment_id=payment_id)
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Некорректные данные платежа")
+            await access_report(checkout)
+            return {"ok": True}
         user_id    = meta.get("user_id")
         ptype      = meta.get("type", "analysis")
         if user_id:
