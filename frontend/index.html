@@ -771,6 +771,12 @@
     .report-teaser-content { position: relative; display: grid; justify-items: center; gap: 10px; padding: 18px; text-align: center; background: rgba(255, 255, 255, .86); }
     .report-teaser-content span, .report-teaser-content small { color: var(--muted); }
     .admin-analysis .footnote { display: none; }
+    .listing-import { margin-top: 16px; }
+    .listing-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+    .listing-controls input { flex: 1 1 260px; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); font: inherit; }
+    .listing-import small { color: var(--muted); }
+    .repair-options { padding-left: 18px; margin: 10px 0; }
+    .repair-options li + li { margin-top: 8px; }
 
     .paywall {
       display: none;
@@ -1451,6 +1457,15 @@
       </div>
     </div>
 
+    <form class="listing-import" id="listingForm">
+      <label class="field-label" for="listingUrl">Фото из объявления Авито</label>
+      <div class="listing-controls">
+        <input id="listingUrl" type="url" inputmode="url" placeholder="https://www.avito.ru/…" maxlength="2048" required>
+        <button class="btn-outline" id="listingImportBtn" type="submit">Загрузить фото</button>
+      </div>
+      <small id="listingStatus" role="status"></small>
+    </form>
+
     <div class="divider"></div>
 
     <!-- Inspection type -->
@@ -1458,6 +1473,7 @@
       <label class="field-label" for="inspectionType">Тип осмотра</label>
       <select id="inspectionType">
         <option value="страховой случай">Страховой случай</option>
+        <option value="осмотр перед покупкой">Осмотр перед покупкой</option>
         <option value="предпродажная оценка">Предпродажная оценка</option>
         <option value="плановый осмотр">Плановый осмотр</option>
         <option value="оценка ремонта">Оценка стоимости ремонта</option>
@@ -1853,6 +1869,42 @@
 
   let mainPhotoIdx = 0;
 
+  async function importListing(event) {
+    event.preventDefault();
+    const button = document.getElementById('listingImportBtn');
+    const status = document.getElementById('listingStatus');
+    button.disabled = true;
+    analyzeBtn.disabled = true;
+    status.textContent = 'Загружаем фото объявления…';
+    hideError();
+    try {
+      const res = await fetch('/api/listing/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: document.getElementById('listingUrl').value.trim() })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.photos?.length) {
+        throw new Error(typeof data.detail === 'string' ? data.detail : 'Проверьте ссылку на объявление.');
+      }
+      const files = data.photos.map(photo => new File(
+        [Uint8Array.from(atob(photo.base64), character => character.charCodeAt(0))],
+        photo.name, { type: photo.mime }
+      ));
+      currentFiles = [];
+      mainPhotoIdx = 0;
+      fileInput.value = '';
+      inspectionType.value = 'осмотр перед покупкой';
+      handleFiles(files);
+      status.textContent = 'Фото загружены. Нажмите «Анализировать повреждения».';
+    } catch (error) {
+      status.textContent = error.message || 'Загрузите фото вручную.';
+    } finally {
+      button.disabled = false;
+      analyzeBtn.disabled = !currentFiles.length;
+    }
+  }
+
   function renderPreviews() {
     if (!currentFiles.length) return;
     uploadZone.style.display = 'none';
@@ -1937,10 +1989,17 @@
   // ── Analyze ──
   async function doAnalyze() {
     if (!currentFiles.length) { showError('Выберите фото для анализа'); return; }
+    if (currentFiles.reduce((total, file) => total + file.size, 0) > 19 * 1024 * 1024) {
+      showError('Общий размер фотографий не должен превышать 19 МБ.');
+      return;
+    }
 
     _analyzeStart = Date.now();
     loadingBox.classList.add('visible');
     analyzeBtn.disabled = true;
+    const listingButton = document.getElementById('listingImportBtn');
+    listingButton.disabled = true;
+    const selectedInspection = inspectionType.value;
 
     // Блокируем кнопки удаления и PDF на время анализа
     const removeAllBtn = document.querySelector('.btn-remove');
@@ -1956,10 +2015,10 @@
     fd.append('file', currentFiles[mainPhotoIdx || 0]); // главное фото
     // Остальные фото
     currentFiles.forEach((f, i) => { if (i !== (mainPhotoIdx || 0)) fd.append('extra_files', f); });
-    fd.append('inspection_type', inspectionType.value);
+    fd.append('inspection_type', selectedInspection);
     fd.append('photos_count', currentFiles.length);
 
-    track('analyze_started', { inspection_type: inspectionType.value });
+    track('analyze_started', { inspection_type: selectedInspection });
     let step = 1; setStep(1);
     const timer = setInterval(() => { if (step < 4) setStep(++step); }, 1800);
 
@@ -1985,11 +2044,11 @@
       track('analyze_success', {
         damages_count: json.damage_count ?? (json.data?.damages?.length || 0),
         confidence: json.data?.meta?.analysis_confidence,
-        inspection_type: inspectionType.value,
+        inspection_type: selectedInspection,
       });
 
       lastAnalysisResult     = json;
-      lastAnalysisInspection = inspectionType.value;
+      lastAnalysisInspection = selectedInspection;
 
       renderResult(json);
       // Показываем баннер сохранения для незарегистрированных
@@ -2011,6 +2070,7 @@
     } finally {
       loadingBox.classList.remove('visible');
       analyzeBtn.disabled = false;
+      listingButton.disabled = false;
       const removeAllBtn = document.querySelector('.btn-remove');
       if (removeAllBtn) removeAllBtn.disabled = false;
       // PDF-кнопка в хедере управляется через renderResult/printBtn visibility
@@ -2031,6 +2091,7 @@
     const damages = (raw && raw.damages) ? raw.damages : [];
     const summary = (raw && raw.summary) ? raw.summary : {};
     const meta    = (raw && raw.meta)    ? raw.meta    : {};
+    const purchaseInspection = (json.inspection_type || lastAnalysisInspection) === 'осмотр перед покупкой';
 
     const confidenceColor = vehicle.confidence >= 80 ? '#10b981' : vehicle.confidence >= 50 ? '#f59e0b' : '#ef4444';
     const confidenceLabel = vehicle.confidence >= 80 ? 'Высокая' : vehicle.confidence >= 50 ? 'Средняя' : 'Низкая';
@@ -2099,13 +2160,18 @@
             ${reportUnlocked ? `
               <div class="dmg-description">${esc(d.description)}</div>
               <div class="dmg-tags">
-                ${d.size_cm2 != null ? `<div class="tag">${d.size_cm2} см²</div>` : ''}
+                ${d.size_label ? `<div class="tag">Размер: ${esc(d.size_label)}</div>` : ''}
                 <div class="tag">${esc(d.repair_method)}</div>
               </div>
-              <div class="dmg-cost-row">
+              ${d.repair_options?.length ? `<ul class="repair-options">
+                ${d.repair_options.map(option => `<li>
+                  <strong>${esc(option.method)}</strong> · ${option.cost ? fmtRange(option.cost.min, option.cost.max) : 'Смета после осмотра'}
+                  <div>${esc(option.condition)}</div>
+                </li>`).join('')}
+              </ul>` : `<div class="dmg-cost-row">
                 <div class="dmg-cost-label">Стоимость ремонта</div>
-                <div class="dmg-cost-value">${d.estimated_cost_rub ? fmtRange(d.estimated_cost_rub.min, d.estimated_cost_rub.max) : '—'}</div>
-              </div>` : ''}
+                <div class="dmg-cost-value">${d.estimated_cost_rub ? fmtRange(d.estimated_cost_rub.min, d.estimated_cost_rub.max) : 'Уточняется после осмотра'}</div>
+              </div>`}` : ''}
           </div>`;
       });
     }
@@ -2132,7 +2198,7 @@
         <div class="summary-row"><span class="sum-label">Автомобиль на ходу</span><span class="sum-value">${drivableLabel(summary.drivable)}</span></div>
         <div class="summary-row"><span class="sum-label">Очный осмотр</span><span class="sum-value">${summary.requires_in_person_inspection ? 'Рекомендуется' : 'Не требуется'}</span></div>
         <div class="summary-row"><span class="sum-label">Уверенность анализа</span><span class="sum-value">${meta.analysis_confidence != null ? meta.analysis_confidence + "%" : "—"}</span></div>
-        <div class="summary-row total"><span class="sum-label">Итоговая стоимость</span><span class="sum-total">${summary.total_estimated_cost ? fmtRange(summary.total_estimated_cost.min, summary.total_estimated_cost.max) : "—"}</span></div>
+        <div class="summary-row total"><span class="sum-label">Ориентир по стоимости</span><span class="sum-total">${summary.total_estimated_cost ? fmtRange(summary.total_estimated_cost.min, summary.total_estimated_cost.max) : "Уточняется после осмотра"}</span></div>
       </div>`;
     }
 
@@ -2147,17 +2213,11 @@
     }
 
     // Seller script — содержит повреждения и итоговую стоимость, доступен только после оплаты
-    if (damages.length > 0 && reportUnlocked) {
+    if (purchaseInspection && damages.length > 0 && reportUnlocked) {
       const topDmg = damages.slice(0, 3).map(d =>
         damageLabel(d.type).toLowerCase() + ' (' + (d.location || '') + ')'
       ).join(', ');
-      const tMin = summary.total_estimated_cost?.min;
-      const tMax = summary.total_estimated_cost?.max;
-      const discount = tMin ? Math.round(tMin / 500) * 500 : null;
-      const costPart = tMin ? `ремонт выйдет в ${fmtRange(tMin, tMax)}` : '';
-      const discountPart = discount ? `прошу скидку ${fmt(discount)}` : '';
-      const parts = [costPart, discountPart].filter(Boolean);
-      const scriptText = `«Здравствуйте! Машина понравилась. По фото вижу ${topDmg}${parts.length ? ' — ' + parts.join(', ') : ''}. Готовы договориться?»`;
+      const scriptText = `«Здравствуйте! Интересует автомобиль. По фото заметил: ${topDmg}. Можете прислать крупные снимки этих мест или согласовать осмотр? После этого сможем обсудить цену.»`;
       html += `<div class="seller-script">
         <div class="seller-script-label">Скрипт для переговоров с продавцом</div>
         <div class="seller-script-text" id="sellerScriptText">${esc(scriptText)}</div>
@@ -2217,7 +2277,7 @@
   function drivableLabel(v) {
     if (v === true)  return 'Да';
     if (v === false) return 'Нет';
-    return 'Неизвестно';
+    return 'По фото не определить';
   }
 
   function copySellerScript(btn) {
@@ -3129,6 +3189,7 @@
       if (e.target.files.length) handleFiles(e.target.files);
     });
     analyzeBtn.addEventListener('click', doAnalyze);
+    document.getElementById('listingForm').addEventListener('submit', importListing);
 
     initAuth();
 
