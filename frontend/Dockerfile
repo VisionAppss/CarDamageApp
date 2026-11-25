@@ -20,6 +20,8 @@ RUN chmod 644 /usr/share/nginx/html/admin.html
 
 # Копируем конфиг nginx
 COPY icons/ /usr/share/nginx/html/icons/
+RUN chmod 755 /usr/share/nginx/html/icons && chmod 644 /usr/share/nginx/html/icons/favicon.svg
+COPY fonts/ /usr/share/nginx/html/fonts/
 COPY img/ /usr/share/nginx/html/img/
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

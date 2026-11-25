@@ -11,6 +11,19 @@
   <script src="/promo2.js" defer></script>
 </head>
 <body>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-scan" viewBox="0 0 24 24"><path d="M9 3H6a3 3 0 0 0-3 3v3m12-6h3a3 3 0 0 1 3 3v3m0 6v3a3 3 0 0 1-3 3h-3m-6 0H6a3 3 0 0 1-3-3v-3"/></symbol>
+    <symbol id="icon-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7l10-5Zm-8 9-2 1 10 5 10-5-2-1M4 16l-2 1 10 5 10-5-2-1"/></symbol>
+    <symbol id="icon-wrench" viewBox="0 0 24 24"><path d="M14 6a5 5 0 0 1 6-4l-3 3 2 2 3-3a5 5 0 0 1-6 6L6 21a2.1 2.1 0 0 1-3-3l11-10z"/></symbol>
+    <symbol id="icon-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 10-12h-7l1-8z"/></symbol>
+    <symbol id="icon-photo" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m2 17 6-5 4 3 4-5 6 6"/></symbol>
+    <symbol id="icon-chip" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v3m6-3v3m-6 14v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3"/></symbol>
+    <symbol id="icon-report" viewBox="0 0 24 24"><rect x="3" y="2" width="18" height="20" rx="2"/><path d="M10 7h7m-7 5h7m-7 5h4M7 7h.01M7 12h.01M7 17h.01"/></symbol>
+    <symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 2 3 6v5c0 5 3 8 9 11 6-3 9-6 9-11V6l-9-4Z"/><path d="M12 8v6"/></symbol>
+    <symbol id="icon-car" viewBox="0 0 24 24"><path d="m4 10 2-5h12l2 5m-17 7v3m18-3v3M5 10h14a3 3 0 0 1 3 3v4H2v-4a3 3 0 0 1 3-3Zm1 4h2m8 0h2"/></symbol>
+    <symbol id="icon-person" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M3 21v-2a5 5 0 0 1 5-5h8a5 5 0 0 1 5 5v2Z"/></symbol>
+    <symbol id="icon-sliders" viewBox="0 0 24 24"><path d="M3 6h10m4 0h4M3 12h4m4 0h10M3 18h12m4 0h2"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+  </svg>
   <div class="intro">
     <header class="shell header">
       <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>CarScan</a>
@@ -24,15 +37,41 @@
       <p>Загрузи фотографии автомобиля и узнай о видимых повреждениях, их серьёзности и ориентировочной стоимости ремонта.</p>
       <a href="/#uploadZone" class="button" data-check>Проверить бесплатно <span aria-hidden="true">→</span></a>
     </section>
-    <div class="shell quick" id="how">
-      <div><span aria-hidden="true">⌗</span>Находит<br>повреждения</div>
-      <div><span aria-hidden="true">◇</span>Оценивает<br>серьёзность</div>
-      <div><span aria-hidden="true">⚒</span>Оценивает<br>стоимость ремонта</div>
-      <div><span aria-hidden="true">ϟ</span>Работает<br>онлайн</div>
+    <div class="shell quick">
+      <div><svg class="icon" aria-hidden="true"><use href="#icon-scan"></use></svg><span>Находит<br>повреждения</span></div>
+      <div><svg class="icon" aria-hidden="true"><use href="#icon-layers"></use></svg><span>Оценивает<br>серьёзность</span></div>
+      <div><svg class="icon" aria-hidden="true"><use href="#icon-wrench"></use></svg><span>Оценивает<br>стоимость ремонта</span></div>
+      <div><svg class="icon" aria-hidden="true"><use href="#icon-bolt"></use></svg><span>Работает<br>онлайн</span></div>
     </div>
   </div>
 
   <main>
+    <section class="how" id="how" aria-labelledby="how-title">
+      <div class="shell how-layout">
+        <h2 id="how-title">Как это работает</h2>
+        <ol class="how-steps">
+          <li><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#icon-photo"></use></svg></span><span>Загрузи<br>фотографии</span></li>
+          <li><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#icon-chip"></use></svg></span><span>CarScan проанализирует<br>кузов</span></li>
+          <li><span class="step-icon"><svg class="icon" aria-hidden="true"><use href="#icon-report"></use></svg></span><span>Получи результат<br>и рекомендации</span></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="defects-section" aria-labelledby="defects-title">
+      <div class="shell defects-layout">
+        <div class="defects-image">
+          <img src="/img/promo2/graphite-report.webp" alt="Царапины на переднем бампере" loading="lazy">
+          <svg class="icon" aria-hidden="true"><use href="#icon-scan"></use></svg>
+        </div>
+        <div>
+          <h2 id="defects-title">Узнай, что видно на кузове</h2>
+          <ul class="ticks">
+            <li>Царапины</li><li>Вмятины</li><li>Сколы и трещины</li><li>Деформации</li><li>Видимые следы коррозии</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
     <section class="shell report section" id="report" aria-labelledby="report-title">
       <div class="report-summary">
         <h2 id="report-title">Так выглядит<br>отчёт CarScan</h2>
@@ -87,10 +126,10 @@
     <section class="shell section business" id="business">
       <h2>Для бизнеса и частных клиентов</h2>
       <div class="audience">
-        <article><span aria-hidden="true">◇</span><div><h3>Страховые компании</h3><p>Предварительная оценка видимых повреждений.</p></div></article>
-        <article><span aria-hidden="true">⚒</span><div><h3>Автосервисы</h3><p>Первичный осмотр по фото.</p></div></article>
-        <article><span aria-hidden="true">▱</span><div><h3>Дилеры</h3><p>Оценка кузова перед покупкой.</p></div></article>
-        <article><span aria-hidden="true">♙</span><div><h3>Автовладельцы</h3><p>Проверка состояния своего автомобиля.</p></div></article>
+        <article><svg class="icon" aria-hidden="true"><use href="#icon-shield"></use></svg><div><h3>Страховые компании</h3><p>Предварительная оценка видимых повреждений.</p></div></article>
+        <article><svg class="icon" aria-hidden="true"><use href="#icon-wrench"></use></svg><div><h3>Автосервисы</h3><p>Первичный осмотр по фото.</p></div></article>
+        <article><svg class="icon" aria-hidden="true"><use href="#icon-car"></use></svg><div><h3>Дилеры</h3><p>Оценка кузова перед покупкой.</p></div></article>
+        <article><svg class="icon" aria-hidden="true"><use href="#icon-person"></use></svg><div><h3>Автовладельцы</h3><p>Проверка состояния своего автомобиля.</p></div></article>
       </div>
     </section>
 
@@ -98,10 +137,10 @@
       <div>
         <h2>Что получишь</h2>
         <div class="outcome-grid">
-          <div><span aria-hidden="true">◇</span><h3>Список дефектов</h3><p>Какие повреждения видны на фото.</p></div>
-          <div><span aria-hidden="true">⌗</span><h3>Расположение</h3><p>Какие участки кузова проверить.</p></div>
-          <div><span aria-hidden="true">⚒</span><h3>Варианты ремонта</h3><p>Какие работы могут понадобиться.</p></div>
-          <div><span aria-hidden="true">≡</span><h3>Смета</h3><p>Ориентир по стоимости работ.</p></div>
+          <div><svg class="icon" aria-hidden="true"><use href="#icon-shield"></use></svg><h3>Список дефектов</h3><p>Какие повреждения видны на фото.</p></div>
+          <div><svg class="icon" aria-hidden="true"><use href="#icon-scan"></use></svg><h3>Расположение</h3><p>Какие участки кузова проверить.</p></div>
+          <div><svg class="icon" aria-hidden="true"><use href="#icon-wrench"></use></svg><h3>Варианты ремонта</h3><p>Какие работы могут понадобиться.</p></div>
+          <div><svg class="icon" aria-hidden="true"><use href="#icon-sliders"></use></svg><h3>Смета</h3><p>Ориентир по стоимости работ.</p></div>
         </div>
       </div>
       <div>

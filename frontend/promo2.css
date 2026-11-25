@@ -1,3 +1,17 @@
+@font-face {
+  font-family: "CarScan Roboto";
+  src: url('/fonts/promo2/roboto-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+2000-206F, U+2190-2199;
+}
+@font-face {
+  font-family: "CarScan Roboto";
+  src: url('/fonts/promo2/roboto-cyrillic.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range: U+0400-052F, U+2116;
+}
 :root {
   color-scheme: dark;
   --bg: #0e151b;
@@ -8,13 +22,13 @@
   --line: #ffffff22;
   --gutter: clamp(20px, 5vw, 180px);
   --content-width: 3000px;
-  --step: clamp(42px, 4.4vw, 126px);
+  --step: clamp(62px, 6.1vw, 168px);
   --body-size: clamp(15px, 1.13vw, 32px);
   --small-size: clamp(14px, .95vw, 26px);
   --column-gap: clamp(18px, 3.2vw, 96px);
-  font-family: Inter, system-ui, sans-serif;
-  font-weight: 400;
-  line-height: 1.5;
+  font-family: "Helvetica Neue", "CarScan Roboto", Helvetica, Arial, sans-serif;
+  font-weight: 350;
+  line-height: 1.55;
   background: var(--bg);
   color: var(--text);
   scroll-behavior: smooth;
@@ -35,10 +49,10 @@ h1, h2, h3, p, ul { margin: 0; }
   inset: 0 0 auto;
   margin-inline: auto;
   width: min(100%, calc(var(--content-width) + 2 * var(--gutter)));
-  height: clamp(370px, 34vw, 1060px);
+  height: 100%;
   background:
-    linear-gradient(0deg, var(--bg), transparent 30%),
-    linear-gradient(90deg, var(--bg), #0e151be8 24%, #0e151b10 65%),
+    linear-gradient(0deg, var(--bg) 2%, #0e151bbc 15%, transparent 44%),
+    linear-gradient(90deg, var(--bg), #0e151bc4 24%, #0e151b10 68%),
     url('/img/promo2/graphite-hero.webp') right center / auto 100% no-repeat;
 }
 .header, .footer, nav { display: flex; align-items: center; }
@@ -52,19 +66,35 @@ nav a:hover, .legal a:hover { text-decoration: underline; }
 .brand-mark::after { background: #ff1c2c; clip-path: polygon(42% 40%, 90% 40%, 100% 53%, 67% 100%, 35% 100%, 46% 83%, 63% 83%, 82% 54%, 51% 54%); }
 .login { border: 1px solid #ffffffa0; border-radius: 7px; font-size: var(--small-size); padding: .5em 1.2em; }
 .login:hover { background: #ffffff20; }
-.hero { padding-block: clamp(34px, 5vw, 180px) clamp(40px, 5.3vw, 195px); }
-h1, h2, h3 { letter-spacing: -.026em; line-height: 1.14; font-weight: 500; }
+.hero { padding-block: clamp(62px, 7vw, 215px) clamp(92px, 10vw, 270px); }
+h1, h2, h3 { letter-spacing: -.025em; line-height: 1.12; font-weight: 340; }
+h3 { font-weight: 400; }
 h1 { font-size: clamp(42px, 4.65vw, 145px); }
 h2 { font-size: clamp(28px, 2.65vw, 78px); }
 h3 { font-size: clamp(17px, 1.45vw, 42px); }
-.hero p { margin: 1.2em 0 1.35em; max-width: 33ch; font-size: clamp(16px, 1.22vw, 36px); line-height: 1.5; }
-.button { display: inline-flex; align-items: center; justify-content: center; gap: .8em; padding: .8em 2.15em; border: 1px solid transparent; border-radius: 11px; background: var(--red); color: #fff; font-size: var(--body-size); font-weight: 500; white-space: nowrap; }
+.hero p { margin: 1.45em 0 2em; max-width: 33ch; font-size: clamp(17px, 1.5vw, 40px); line-height: 1.5; color: var(--muted); }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: .8em; padding: .85em 1.65em; border: 1px solid transparent; border-radius: 11px; background: var(--red); color: #fff; font-size: var(--body-size); font-weight: 400; white-space: nowrap; }
 .button:hover { background: #f42938; }
 .button.small { border-radius: 8px; padding: .58em 1em; font-size: var(--small-size); }
-.quick { display: grid; grid-template-columns: repeat(4, 1fr); padding-block: 12px clamp(22px, 2.5vw, 76px); }
-.quick div { display: flex; align-items: center; justify-content: center; gap: clamp(9px, 1.6vw, 46px); font-size: var(--small-size); line-height: 1.35; }
+.quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding-block: 10px clamp(34px, 4.2vw, 115px); }
+.quick div { display: grid; align-content: start; justify-items: start; gap: .75em; padding-inline: clamp(16px, 3.1vw, 92px); font-size: var(--body-size); line-height: 1.35; }
 .quick div + div, .audience article + article { border-left: 1px solid var(--line); }
-.quick span, .audience article > span, .outcome-grid span { font-size: clamp(23px, 2.1vw, 56px); line-height: 1; font-weight: 400; filter: grayscale(1); }
+.icon-library { position: absolute; width: 0; height: 0; overflow: hidden; }
+.icon { width: clamp(27px, 2.85vw, 72px); height: auto; aspect-ratio: 1; flex: none; fill: none; stroke: currentColor; stroke-width: 1.35; stroke-linecap: round; stroke-linejoin: round; }
+.how { background: linear-gradient(120deg, #14181c, #1a1e22 60%, #10161c); }
+.how-layout, .defects-layout { display: grid; align-items: center; gap: var(--column-gap); padding-block: var(--step); }
+.how-layout { grid-template-columns: minmax(0, .9fr) minmax(0, 1.55fr); }
+.how-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); list-style: none; padding: 0; gap: clamp(16px, 2vw, 54px); }
+.how-steps li { position: relative; display: grid; justify-items: center; align-content: start; gap: 12px; text-align: center; font-size: var(--body-size); line-height: 1.3; }
+.how-steps li + li::before { content: ""; position: absolute; left: calc(-1 * clamp(10px, 1vw, 27px)); top: clamp(22px, 2.6vw, 70px); width: 9px; height: 9px; border-top: 1px solid; border-right: 1px solid; transform: rotate(45deg); }
+.step-icon { display: grid; place-items: center; width: clamp(60px, 6vw, 160px); aspect-ratio: 1; border: 1px solid #ffffff0b; border-radius: 24%; background: #ffffff0c; }
+.defects-section { background: #090d11; }
+.defects-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.defects-image { position: relative; border-radius: 15px; overflow: hidden; }
+.defects-image img { aspect-ratio: 1.6; }
+.defects-image .icon { position: absolute; inset: 22% 24%; width: 52%; height: 56%; stroke-width: .55; }
+.defects-layout .ticks { margin-top: 1.3em; }
+.defects-layout .ticks li { margin-bottom: .48em; }
 .section { margin-block: var(--step); }
 .report { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.45fr) minmax(0, 1.12fr); gap: var(--column-gap); align-items: start; }
 .report-summary h2 { margin-bottom: .7em; }
@@ -99,7 +129,7 @@ h3 { font-size: clamp(17px, 1.45vw, 42px); }
 .scenarios { padding-top: 9px; }
 .scenarios > h2, .business > h2 { font-size: clamp(25px, 2.35vw, 68px); margin-bottom: .6em; }
 .scenario-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--column-gap); }
-.scenario { border: 1px solid var(--line); border-radius: 12px; min-height: clamp(164px, 13vw, 380px); padding: clamp(16px, 1.6vw, 46px) clamp(16px, 2.7vw, 80px); background-size: cover; background-position: center; }
+.scenario { border: 1px solid var(--line); border-radius: 12px; min-height: clamp(210px, 17vw, 450px); padding: clamp(22px, 2.8vw, 72px) clamp(16px, 2.7vw, 80px); background-size: cover; background-position: center; }
 .buying { background-image: linear-gradient(90deg, #172029, transparent 100%), url('/img/promo2/graphite-buy.webp'); }
 .accident { background-image: linear-gradient(90deg, #111a22 12%, transparent 90%), url('/img/promo2/graphite-rear.webp'); }
 .scenario h3 { font-size: clamp(21px, 1.85vw, 54px); }
@@ -115,7 +145,7 @@ h3 { font-size: clamp(17px, 1.45vw, 42px); }
 .outcome-grid { gap: 10px; }
 .outcome-grid h3 { margin-top: 6px; }
 .closing { margin-top: var(--step); background: linear-gradient(90deg, #0e151b 16%, #0e151be0 62%, transparent), url('/img/promo2/graphite-rear.webp') right center / 46% auto no-repeat; }
-.closing-grid { display: grid; grid-template-columns: .96fr 1.12fr; gap: var(--column-gap); align-items: center; padding-block: 4px clamp(30px, 4vw, 115px); }
+.closing-grid { display: grid; grid-template-columns: .96fr 1.12fr; gap: var(--column-gap); align-items: center; padding-block: clamp(24px, 3vw, 75px) var(--step); }
 .closing h2 { font-size: clamp(24px, 2.22vw, 65px); margin-bottom: .6em; }
 .closing details { border-bottom: 1px solid var(--line); font-size: var(--small-size); }
 .closing summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: .64em .65em; list-style: none; font-weight: 500; }
@@ -141,6 +171,8 @@ dialog::backdrop { background: #05080ad9; }
   .audience { gap: 20px; }
   .audience article + article { border-left: 0; padding-left: 0; }
   .outcome-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .how-layout { grid-template-columns: 1fr; }
+  .how-steps { max-width: 800px; }
 }
 @media (max-width: 720px) {
   .header { display: grid; grid-template-columns: 1fr auto; padding-block: 12px; gap: 12px; }
@@ -154,11 +186,11 @@ dialog::backdrop { background: #05080ad9; }
       linear-gradient(90deg, #0e151bbb, #0e151b44 63%, transparent),
       url('/img/promo2/graphite-hero.webp') right center / auto 100% no-repeat;
   }
-  .hero { padding-block: 26px clamp(130px, 35vw, 240px); }
+  .hero { padding-block: 42px clamp(160px, 40vw, 280px); }
   .hero h1, .hero p { text-shadow: 0 2px 14px #030506; }
   .hero p { max-width: 29ch; }
   .quick { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-  .quick div { justify-content: start; }
+  .quick div { padding-inline: 0; }
   .quick div + div { border-left: 0; }
   .needs-inner { grid-template-columns: 1fr; gap: 14px; }
   .needs { background-size: cover; background-position: left center; }
@@ -168,10 +200,11 @@ dialog::backdrop { background: #05080ad9; }
 @media (max-width: 540px) {
   .header nav { display: grid; grid-template-columns: 1fr 1fr; }
   .intro::before { top: 205px; }
-  .hero { padding-bottom: clamp(125px, 40vw, 205px); }
-  .report, .report-list, .outcomes, .closing-grid, .scenario-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero { padding-bottom: clamp(156px, 44vw, 235px); }
+  .report, .report-list, .outcomes, .closing-grid, .scenario-grid, .defects-layout { grid-template-columns: minmax(0, 1fr); }
+  .how-steps li { font-size: var(--small-size); }
   .outcomes > div + div, .closing-cta { border-left: 0; padding-left: 0; }
   .closing { background-size: cover, 100% auto; background-position: center, right bottom; }
-  .scenario { min-height: 170px; }
+  .scenario { min-height: 205px; }
 }
 @media (prefers-reduced-motion: reduce) { :root { scroll-behavior: auto; } }
