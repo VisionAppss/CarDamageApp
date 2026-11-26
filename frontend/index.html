@@ -2124,7 +2124,7 @@
     printButton.disabled = false;
     printButton.style.display = '';
 
-    document.getElementById('servicesWrap').hidden = adminAnalysis;
+    document.getElementById('servicesWrap').hidden = false;
   }
 
   // ── Helpers ──
@@ -2588,7 +2588,11 @@
         body: JSON.stringify({ latitude, longitude }),
         signal: controller.signal
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        const message = typeof error.detail === 'string' ? error.detail : 'Не удалось загрузить список автосервисов.';
+        throw new Error(message);
+      }
       const { services } = await res.json();
       if (controller.signal.aborted) return;
       for (const service of services) {
@@ -2613,9 +2617,13 @@
       status.textContent = services.length ? 'Данные каталога 2ГИС' : 'В радиусе 5 км сервисы не найдены. Посмотрите другие варианты на карте.';
     } catch (error) {
       if (controller.signal.aborted) return;
-      status.textContent = error.code === 1
-        ? 'Доступ к геопозиции отключён. Можно найти сервис вручную на карте.'
-        : 'Не удалось загрузить список. Попробуйте поиск на карте.';
+      const locationErrors = {
+        1: 'Доступ к геопозиции отключён.',
+        2: 'Браузер не смог определить геопозицию.',
+        3: 'Браузер не успел определить геопозицию.'
+      };
+      status.textContent = (locationErrors[error.code] || error.message || 'Не удалось загрузить список автосервисов.')
+        + ' Попробуйте поиск на карте.';
     } finally {
       if (!controller.signal.aborted) button.disabled = false;
     }

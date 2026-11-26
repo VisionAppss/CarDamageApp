@@ -940,7 +940,8 @@ async def listing_photos(data: ListingPhotoRequest):
 @app.post("/services/nearby")
 async def nearby_services(data: ServiceSearchRequest, response: Response):
     if not TWOGIS_API_KEY:
-        raise HTTPException(503, "Каталог автосервисов временно недоступен")
+        logger.warning("2GIS search unavailable: TWOGIS_API_KEY is unset")
+        raise HTTPException(503, "Поиск по 2ГИС не настроен на сервере.")
 
     async with httpx.AsyncClient(timeout=8.0) as client:
         try:
@@ -952,21 +953,41 @@ async def nearby_services(data: ServiceSearchRequest, response: Response):
                     "fields": "items.point", "key": TWOGIS_API_KEY,
                 },
             )
-            if upstream.status_code == 404:
-                items = []
-            else:
-                upstream.raise_for_status()
-                payload = upstream.json()
-                if payload.get("meta", {}).get("code", 200) not in (200, 404):
-                    raise ValueError("2GIS could not complete search")
-                items = payload.get("result", {}).get("items") or []
-        except (httpx.HTTPError, ValueError):
-            raise HTTPException(502, "Не удалось получить данные каталога автосервисов")
+        except httpx.RequestError as exc:
+            logger.warning("2GIS search connection failure: %s", type(exc).__name__)
+            raise HTTPException(502, "Не удалось подключиться к каталогу 2ГИС.") from None
+
+    try:
+        payload = upstream.json()
+    except ValueError:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    meta = payload.get("meta")
+    code = str(meta.get("code", upstream.status_code)) if isinstance(meta, dict) else str(upstream.status_code)
+    if upstream.status_code in (401, 403) or code in ("401", "403"):
+        logger.warning("2GIS search refused access: status=%s", upstream.status_code)
+        raise HTTPException(502, "2ГИС отклонил доступ к каталогу. Проверьте ключ и разрешения Places API.")
+    if upstream.status_code == 429 or code == "429":
+        logger.warning("2GIS search rate limited: status=%s", upstream.status_code)
+        raise HTTPException(502, "Исчерпан лимит запросов к 2ГИС.")
+    catalog = payload.get("result")
+    if code == "404" and isinstance(meta, dict) and upstream.status_code in (200, 404):
+        items = []
+    elif upstream.is_success and code == "200" and isinstance(catalog, dict) and isinstance(catalog.get("items"), list):
+        items = catalog["items"]
+    else:
+        logger.warning("2GIS search unexpected response: status=%s", upstream.status_code)
+        raise HTTPException(502, "2ГИС не вернул список автосервисов.")
 
     services = []
     origin_lat = math.radians(data.latitude)
     for item in items:
+        if not isinstance(item, dict):
+            continue
         point = item.get("point") or {}
+        if not isinstance(point, dict):
+            continue
         lat, lon = point.get("lat"), point.get("lon")
         if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
             continue
