@@ -23,6 +23,7 @@ from email.mime.text import MIMEText
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Optional, Literal
+from urllib.parse import urlsplit
 
 import httpx
 import openai
@@ -48,9 +49,7 @@ if not config.sections():
         "config.ini не найден! Скопируйте config.example.ini в config.ini и заполните ключи."
     )
 
-YANDEX_API_KEY = config.get('yandex', 'api_key')
-YANDEX_FOLDER  = config.get('yandex', 'folder_id')
-YANDEX_MODEL   = config.get('yandex', 'model', fallback='qwen3.6-35b-a3b/latest')
+VISION_PROVIDER = os.getenv('CARSCAN_VISION_PROVIDER', 'yandex').strip().lower()
 
 # SMTP для OTP-авторизации
 SMTP_HOST = config.get('smtp', 'host',     fallback='smtp.yandex.ru')
@@ -289,14 +288,33 @@ Instructions:
 Return ONLY the JSON object, no markdown, no ```json wrapper."""
 
 
-# === YANDEX GPT ===
+# === ПРОВАЙДЕР АНАЛИЗА ФОТО ===
 
-http_client = httpx.Client(timeout=60.0)
+if VISION_PROVIDER == 'selectel':
+    vision_model = 'qwen3.8-27b'
+    vision_model_id = vision_model
+    vision_api_key = os.getenv('SELECTEL_API_KEY', '').strip()
+    vision_base_url = os.getenv('SELECTEL_BASE_URL', '').strip().rstrip('/')
+    vision_base_url = vision_base_url.removesuffix('/chat/completions')
+    selectel_url = urlsplit(vision_base_url)
+    if not vision_api_key or (
+        selectel_url.scheme != 'https' or not selectel_url.hostname
+        or selectel_url.username is not None or selectel_url.query or selectel_url.fragment
+    ):
+        raise RuntimeError('Для Selectel задайте SELECTEL_API_KEY и HTTPS-адрес SELECTEL_BASE_URL')
+elif VISION_PROVIDER == 'yandex':
+    vision_model = config.get('yandex', 'model', fallback='qwen3.6-35b-a3b/latest')
+    vision_folder = config.get('yandex', 'folder_id')
+    vision_model_id = f'gpt://{vision_folder}/{vision_model}'
+    vision_api_key = config.get('yandex', 'api_key')
+    vision_base_url = 'https://llm.api.cloud.yandex.net/v1'
+else:
+    raise RuntimeError('CARSCAN_VISION_PROVIDER должен быть yandex или selectel')
 
 ai_client = openai.OpenAI(
-    api_key=YANDEX_API_KEY,
-    base_url="https://llm.api.cloud.yandex.net/v1",
-    http_client=http_client,
+    api_key=vision_api_key,
+    base_url=vision_base_url,
+    http_client=httpx.Client(timeout=60.0),
 )
 
 
@@ -957,7 +975,7 @@ async def run_analysis(
     encoded_images = [(mime, base64.b64encode(data).decode('ascii')) for mime, data in images]
     base64_image = encoded_images[0][1]
 
-    # Запрос к YandexGPT (retry 2 раза при connection errors)
+    # Повторяем запрос при ошибках соединения.
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": [
@@ -968,36 +986,33 @@ async def run_analysis(
             ],
         ]}
     ]
-    last_exc = None
     response = None
     for attempt in range(3):
         try:
             response = await asyncio.to_thread(
                 ai_client.chat.completions.create,
-                model=f"gpt://{YANDEX_FOLDER}/{YANDEX_MODEL}",
+                model=vision_model_id,
                 temperature=0.1,
                 max_tokens=8000,
                 messages=messages,
             )
             break
-        except openai.APIConnectionError as e:
-            last_exc = e
+        except openai.APITimeoutError:
+            raise HTTPException(status_code=504, detail="Нейросеть не ответила вовремя, попробуйте ещё раз")
+        except openai.APIConnectionError:
             if attempt < 2:
                 await asyncio.sleep(2 ** attempt)
             continue
         except openai.APIStatusError as e:
             status = e.status_code
-            raw_body = e.response.text if hasattr(e, 'response') and e.response else str(e)
-            logger.error(f"YandexGPT API error {status}: {raw_body}")
+            logger.error("Vision API error: provider=%s status=%s request_id=%s", VISION_PROVIDER, status, e.request_id)
             if status == 401:
                 raise HTTPException(status_code=502, detail="Ошибка авторизации нейросети: проверьте API-ключ")
             if status == 429:
                 raise HTTPException(status_code=502, detail="Превышен лимит запросов к нейросети, попробуйте позже")
             if status == 503:
                 raise HTTPException(status_code=502, detail="Нейросеть временно недоступна, попробуйте позже")
-            raise HTTPException(status_code=502, detail=f"Ошибка нейросети: HTTP {status}: {raw_body[:300]}")
-        except openai.APITimeoutError:
-            raise HTTPException(status_code=504, detail="Нейросеть не ответила вовремя, попробуйте ещё раз")
+            raise HTTPException(status_code=502, detail=f"Ошибка нейросети: HTTP {status}")
     if response is None:
         raise HTTPException(status_code=502, detail="Нейросеть недоступна (нет соединения). Попробуйте позже.")
 
@@ -1029,7 +1044,7 @@ async def run_analysis(
     result = {
         "success": True,
         "data": result_data,
-        "model_used": YANDEX_MODEL,
+        "model_used": vision_model,
         "tokens_used": response.usage.total_tokens if response.usage else None,
         "processed_at": datetime.now().isoformat(),
         "filename": filename,
