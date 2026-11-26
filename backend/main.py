@@ -847,9 +847,11 @@ async def get_analyses(user_id: str, limit: int = 20, x_session_token: Optional[
     async with app.state.pool.acquire() as conn:
         rows = await conn.fetch("""
             SELECT a.id, a.created_at, a.inspection_type, a.photo_name,
-                   COALESCE(r.result, a.result) AS result, a.photo_data, a.photo_mime
+                   CASE WHEN r.id IS NULL THEN a.result - 'pdf_unlocked'
+                        ELSE r.result || jsonb_build_object('pdf_unlocked', r.paid_at IS NOT NULL)
+                   END AS result, a.photo_data, a.photo_mime
             FROM analyses a
-            LEFT JOIN analysis_reports r ON r.id::text = a.result->>'report_id' AND r.paid_at IS NOT NULL
+            LEFT JOIN analysis_reports r ON r.id::text = a.result->>'report_id'
             WHERE a.user_id = $1
             ORDER BY a.created_at DESC
             LIMIT $2
@@ -1054,28 +1056,12 @@ async def run_analysis(
 
     if full_report:
         return JSONResponse(
-            {**result, "report_unlocked": True},
+            {**result, "report_unlocked": True, "pdf_unlocked": True},
             headers={"Cache-Control": "no-store"},
         )
 
-    damages = result_data.get("damages") or []
     report_id = uuid.uuid4()
     result.update(report_id=str(report_id), report_unlocked=True)
-    preview = {
-        **result,
-        "report_unlocked": False,
-        "damage_count": len(damages),
-        "data": {
-            "vehicle": result_data.get("vehicle"),
-            "damages": [
-                {key: damages[0].get(key) for key in ("type", "location", "severity")}
-            ] if damages else [],
-            "meta": {
-                key: (result_data.get("meta") or {}).get(key)
-                for key in ("photo_quality", "missing_angles", "analysis_confidence")
-            },
-        },
-    }
     async with app.state.pool.acquire() as conn, conn.transaction():
         await conn.execute(
             "INSERT INTO analysis_reports (id, result) VALUES ($1, $2)",
@@ -1085,14 +1071,14 @@ async def run_analysis(
             await conn.execute("""
                 INSERT INTO analyses (user_id, result, photo_name, inspection_type, photo_data, photo_mime)
                 VALUES ($1, $2, $3, $4, $5, $6)
-            """, current_user["id"], json.dumps(preview), file.filename, inspection_type,
+            """, current_user["id"], json.dumps(result), file.filename, inspection_type,
                  base64_image, file.content_type)
             await conn.execute(
                 "UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1",
                 current_user["id"]
             )
 
-    return JSONResponse(preview, headers={"Cache-Control": "no-store"})
+    return JSONResponse({**result, "pdf_unlocked": False}, headers={"Cache-Control": "no-store"})
 
 
 class AnalysisSaveRequest(BaseModel):
@@ -1137,7 +1123,7 @@ async def create_payment(data: PaymentCreateRequest):
 
     ptype = "pdf"
     price = REPORT_PRICE
-    desc = "Полный отчёт об оценке повреждений автомобиля"
+    desc = "Скачивание отчёта об оценке повреждений автомобиля в PDF"
     metadata = {"user_id": data.user_id or "", "type": ptype}
     if data.report_id:
         async with app.state.pool.acquire() as conn:
@@ -1199,9 +1185,8 @@ async def access_report(data: ReportAccessRequest):
         row = await conn.fetchrow("SELECT result, paid_at FROM analysis_reports WHERE id = $1", data.report_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Отчёт не найден")
-    if not row["paid_at"]:
-        if not data.payment_id:
-            raise HTTPException(status_code=402, detail="Отчёт не оплачен")
+    pdf_unlocked = row["paid_at"] is not None
+    if not pdf_unlocked and data.payment_id:
         if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET:
             raise HTTPException(status_code=503, detail="Проверка оплаты временно недоступна")
         try:
@@ -1220,7 +1205,11 @@ async def access_report(data: ReportAccessRequest):
             await conn.execute(
                 "UPDATE analysis_reports SET paid_at = NOW() WHERE id = $1 AND paid_at IS NULL", data.report_id,
             )
-    return JSONResponse(json.loads(row["result"]), headers={"Cache-Control": "no-store"})
+        pdf_unlocked = True
+    return JSONResponse(
+        {**json.loads(row["result"]), "pdf_unlocked": pdf_unlocked},
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.post("/payment/webhook")

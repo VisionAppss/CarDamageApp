@@ -24,7 +24,7 @@
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Carscan — калькулятор стоимости ремонта авто по фото">
-  <meta name="twitter:description" content="ИИ оценит ущерб и рассчитает стоимость ремонта по фото. Предварительный результат бесплатно, полный отчёт — 100 ₽.">
+  <meta name="twitter:description" content="ИИ оценит ущерб и рассчитает стоимость ремонта по фото. Полный отчёт на сайте бесплатный. Скачивание PDF — 100 ₽.">
   <meta name="twitter:image" content="https://car-scan.ru/icons/og-image.png">
 
   <!-- Favicon -->
@@ -57,7 +57,7 @@
     "@type": "FAQPage",
     "mainEntity": [
       {"@type": "Question", "name": "Как оценить ущерб автомобиля после ДТП онлайн?", "acceptedAnswer": {"@type": "Answer", "text": "Загрузите фотографию повреждённого автомобиля на сайте Carscan. ИИ автоматически определит все повреждения и рассчитает стоимость ремонта."}},
-      {"@type": "Question", "name": "Сколько стоит оценка повреждений автомобиля?", "acceptedAnswer": {"@type": "Answer", "text": "Предварительный результат бесплатный. Полный отчёт с PDF стоит 100 ₽ (разовый платёж). Сервис использует ИИ для автоматической оценки без выезда эксперта."}},
+      {"@type": "Question", "name": "Сколько стоит оценка повреждений автомобиля?", "acceptedAnswer": {"@type": "Answer", "text": "Полный отчёт на сайте бесплатный. Скачивание PDF стоит 100 ₽ (разовый платёж). Сервис использует ИИ для автоматической оценки без выезда эксперта."}},
       {"@type": "Question", "name": "Насколько точна оценка повреждений по фото?", "acceptedAnswer": {"@type": "Answer", "text": "Carscan использует нейросетевую модель с точностью анализа до 85%. Результат носит предварительный характер."}},
       {"@type": "Question", "name": "Можно ли использовать результат для страховой компании?", "acceptedAnswer": {"@type": "Answer", "text": "Оценка Carscan носит информационный характер. Для страховой выплаты требуется официальная экспертиза."}}
     ]
@@ -764,12 +764,6 @@
     .btn-logout:hover { color: var(--black); }
 
     /* ── Paywall ── */
-    .report-teaser { position: relative; isolation: isolate; overflow: hidden; }
-    .report-teaser-skeleton { position: absolute; inset: 18px; display: grid; align-content: space-evenly; filter: blur(5px); }
-    .report-teaser-skeleton i { height: 12px; background: var(--border); border-radius: 4px; }
-    .report-teaser-skeleton i:nth-child(2) { width: 80%; }
-    .report-teaser-content { position: relative; display: grid; justify-items: center; gap: 10px; padding: 18px; text-align: center; background: rgba(255, 255, 255, .86); }
-    .report-teaser-content span, .report-teaser-content small { color: var(--muted); }
     .admin-analysis .footnote { display: none; }
     .listing-import { margin-top: 16px; }
     .listing-controls { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -1532,17 +1526,17 @@
 
   <!-- Paywall -->
   <div class="paywall" id="paywall">
-    <div class="paywall-title" id="paywallTitle">Откройте полный отчёт</div>
+    <div class="paywall-title" id="paywallTitle">Скачать отчёт в PDF</div>
     <div class="paywall-sub" id="paywallSub">
-      Все повреждения, способы ремонта, итоговая стоимость и PDF для скачивания.
+      Скачайте PDF-версию отчёта с повреждениями, сметой и рекомендациями.
     </div>
     <div class="paywall-price"><span id="paywallPriceVal">100</span> <span>₽</span></div>
-    <div class="paywall-per" id="paywallPer">разовый платёж · один отчёт</div>
+    <div class="paywall-per" id="paywallPer">разовый платёж · PDF одного отчёта</div>
     <input type="email" id="paywallEmail" placeholder="Email для чека" autocomplete="email"
       style="width:100%;box-sizing:border-box;padding:10px 12px;font-size:13px;border:1px solid rgba(24,24,24,0.2);border-radius:2px;margin-bottom:10px;outline:none;font-family:inherit;">
     <button class="btn-pay" id="btnPay" onclick="startPayment()">Оплатить через ЮKassa</button>
     <div class="paywall-delivery">
-      Полный отчёт откроется после подтверждения платежа.<br>
+      PDF станет доступен после подтверждения платежа.<br>
       Оплата через ЮKassa: карты Visa, Mastercard, МИР, SberPay, YooMoney.
     </div>
     <div class="paywall-note">
@@ -2088,9 +2082,9 @@
     }
   }
 
-  function isReportUnlocked(result) {
-    if (adminAnalysis) return result?.report_unlocked === true;
-    if (result?.report_id) return result.report_unlocked === true;
+  function canDownloadPDF(result) {
+    if (!result) return false;
+    if (adminAnalysis || result.report_id) return result.pdf_unlocked === true;
     return !!sessionStorage.getItem('ao_pdf_paid') || (currentProfile?.pdf_credits || 0) >= 1;
   }
 
@@ -2199,9 +2193,7 @@
       </div>`;
     }
 
-    const reportUnlocked = isReportUnlocked(json);
     const damageCount = json.damage_count ?? damages.length;
-    const visibleDamages = reportUnlocked ? damages : damages.slice(0, 1);
     html += `<div class="section-head">
       <span class="section-head-label">Повреждения</span>
       <div class="count-badge">${damageCount}</div>
@@ -2210,7 +2202,7 @@
     if (!damageCount) {
       html += `<div class="card" style="color:var(--muted);font-size:13px">Повреждений не обнаружено</div>`;
     } else {
-      visibleDamages.forEach(d => {
+      damages.forEach(d => {
         const sc = severityColor(d.severity);
         html += `
           <div class="damage-card severity-${d.severity}">
@@ -2219,22 +2211,21 @@
               <div class="dmg-severity" style="color:${sc};border-color:${sc}">${severityLabel(d.severity)}</div>
             </div>
             <div class="dmg-location">${esc(d.location)}</div>
-            ${reportUnlocked ? `
-              <div class="dmg-description">${esc(d.description)}</div>
-              <div class="dmg-tags">
-                ${d.size_label ? `<div class="tag">Размер: ${esc(d.size_label)}</div>` : ''}
-                <div class="tag">${esc(d.repair_method)}</div>
-              </div>
-              ${d.repair_options?.length ? `<ul class="repair-options">
-                ${d.repair_options.map(option => `<li>
-                  <strong>${esc(option.method)}</strong> · ${option.cost ? fmtRange(option.cost.min, option.cost.max) : 'Смета после осмотра'}
-                  <div>${esc(option.condition)}</div>
-                </li>`).join('')}
-              </ul>` : `<div class="dmg-cost-row">
-                <div class="dmg-cost-label">${json.estimate_excludes_parts ? 'Стоимость работ' : 'Стоимость ремонта'}</div>
-                <div class="dmg-cost-value">${d.estimated_cost_rub ? fmtRange(d.estimated_cost_rub.min, d.estimated_cost_rub.max) : 'Уточняется после осмотра'}</div>
-              </div>`}
-              ${d.repair_method === 'замена детали' ? partPriceForm() : ''}` : ''}
+            <div class="dmg-description">${esc(d.description)}</div>
+            <div class="dmg-tags">
+              ${d.size_label ? `<div class="tag">Размер: ${esc(d.size_label)}</div>` : ''}
+              <div class="tag">${esc(d.repair_method)}</div>
+            </div>
+            ${d.repair_options?.length ? `<ul class="repair-options">
+              ${d.repair_options.map(option => `<li>
+                <strong>${esc(option.method)}</strong> · ${option.cost ? fmtRange(option.cost.min, option.cost.max) : 'Смета после осмотра'}
+                <div>${esc(option.condition)}</div>
+              </li>`).join('')}
+            </ul>` : `<div class="dmg-cost-row">
+              <div class="dmg-cost-label">${json.estimate_excludes_parts ? 'Стоимость работ' : 'Стоимость ремонта'}</div>
+              <div class="dmg-cost-value">${d.estimated_cost_rub ? fmtRange(d.estimated_cost_rub.min, d.estimated_cost_rub.max) : 'Уточняется после осмотра'}</div>
+            </div>`}
+            ${d.repair_method === 'замена детали' ? partPriceForm() : ''}
           </div>`;
       });
     }
@@ -2244,30 +2235,17 @@
       <span class="section-head-label">Итоговая оценка</span>
     </div>`;
 
-    if (!reportUnlocked) {
-      const hiddenCount = Math.max(0, damageCount - visibleDamages.length);
-      html += `<div class="summary-card report-teaser">
-        <div class="report-teaser-skeleton" aria-hidden="true"><i></i><i></i><i></i></div>
-        <div class="report-teaser-content">
-          <strong>Откройте полный отчёт</strong>
-          <span>${hiddenCount ? 'Осталось повреждений: ' + hiddenCount + '. ' : ''}Подробности, рекомендации, итоговая стоимость и PDF.</span>
-          <button class="btn-primary" onclick="showPaywall()">Купить за 100 ₽</button>
-          <small>Разовый платёж за один отчёт</small>
-        </div>
-      </div>`;
-    } else {
-      html += `<div class="summary-card">
-        <div class="summary-row"><span class="sum-label">Срок ремонта</span><span class="sum-value">${esc(summary.repair_time_days)}</span></div>
-        <div class="summary-row"><span class="sum-label">Автомобиль на ходу</span><span class="sum-value">${drivableLabel(summary.drivable)}</span></div>
-        <div class="summary-row"><span class="sum-label">Очный осмотр</span><span class="sum-value">${summary.requires_in_person_inspection ? 'Рекомендуется' : 'Не требуется'}</span></div>
-        <div class="summary-row"><span class="sum-label">Уверенность анализа</span><span class="sum-value">${meta.analysis_confidence != null ? meta.analysis_confidence + "%" : "—"}</span></div>
-        <div class="summary-row total"><span class="sum-label">Ориентир по стоимости</span><span class="sum-total">${summary.total_estimated_cost ? fmtRange(summary.total_estimated_cost.min, summary.total_estimated_cost.max) : "Уточняется после осмотра"}</span></div>
-        ${json.estimate_excludes_parts ? '<p class="parts-note">Ориентир включает работы. Стоимость деталей и материалов в него не входит.</p>' : ''}
-      </div>`;
-    }
+    html += `<div class="summary-card">
+      <div class="summary-row"><span class="sum-label">Срок ремонта</span><span class="sum-value">${esc(summary.repair_time_days)}</span></div>
+      <div class="summary-row"><span class="sum-label">Автомобиль на ходу</span><span class="sum-value">${drivableLabel(summary.drivable)}</span></div>
+      <div class="summary-row"><span class="sum-label">Очный осмотр</span><span class="sum-value">${summary.requires_in_person_inspection ? 'Рекомендуется' : 'Не требуется'}</span></div>
+      <div class="summary-row"><span class="sum-label">Уверенность анализа</span><span class="sum-value">${meta.analysis_confidence != null ? meta.analysis_confidence + "%" : "—"}</span></div>
+      <div class="summary-row total"><span class="sum-label">Ориентир по стоимости</span><span class="sum-total">${summary.total_estimated_cost ? fmtRange(summary.total_estimated_cost.min, summary.total_estimated_cost.max) : "Уточняется после осмотра"}</span></div>
+      ${json.estimate_excludes_parts ? '<p class="parts-note">Ориентир включает работы. Стоимость деталей и материалов в него не входит.</p>' : ''}
+    </div>`;
 
-    // Recommendations — общие советы, не раскрывают платные детали, оставляем видимыми
-    if (reportUnlocked && (summary.recommendations||[]).length) {
+    // Рекомендации
+    if ((summary.recommendations||[]).length) {
       html += `<div class="rec-card">
         <div class="section-head-label" style="margin-bottom:12px">Рекомендации</div>
         <ul class="rec-list">
@@ -2276,8 +2254,8 @@
       </div>`;
     }
 
-    // Seller script — содержит повреждения и итоговую стоимость, доступен только после оплаты
-    if (purchaseInspection && damages.length > 0 && reportUnlocked) {
+    // Сообщение продавцу для осмотра перед покупкой
+    if (purchaseInspection && damages.length > 0) {
       const topDmg = damages.slice(0, 3).map(d =>
         damageLabel(d.type).toLowerCase() + ' (' + (d.location || '') + ')'
       ).join(', ');
@@ -2296,14 +2274,17 @@
 
     // Actions
     html += `<div class="action-row">
-      ${reportUnlocked ? '<button class="btn-primary" onclick="downloadPDF()">Скачать PDF-отчёт</button>' : ''}
+      <button class="btn-primary" onclick="downloadPDF()">${canDownloadPDF(json) ? 'Скачать PDF-отчёт' : 'Скачать PDF — 100 ₽'}</button>
       <button class="btn-outline" onclick="resetForm()">Новый анализ</button>
     </div>`;
 
     resultWrap.innerHTML = html;
     resultWrap.classList.add('visible');
     resultWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    document.getElementById('printBtn').style.display = reportUnlocked ? '' : 'none';
+    const printButton = document.getElementById('printBtn');
+    printButton.textContent = canDownloadPDF(json) ? 'Скачать PDF' : 'Скачать PDF — 100 ₽';
+    printButton.disabled = false;
+    printButton.style.display = '';
 
     // Ближайшие сервисы временно отключены
     // const damageTypes = ((json && json.data && json.data.damages) ? json.data.damages : (damages || [])).map(d => d.type);
@@ -2985,7 +2966,7 @@
 
         <h2>Тарифы</h2>
         <p><strong>Анализ повреждений</strong> — бесплатно.</p>
-        <p><strong>Полный отчёт — 100 ₽</strong> — разовый платёж за подробности анализа и PDF. Доступен сразу после оплаты.</p>
+        <p><strong>PDF — 100 ₽</strong> — разовый платёж за скачивание. Полный отчёт доступен на сайте бесплатно.</p>
         <p>Способы оплаты: карты Visa / Mastercard / МИР, SberPay, YooMoney. Оплата через <a href="#" onclick="openPopup('oferta');return false">ЮKassa согласно оферте</a>.</p>
 
         <h2>Контакты</h2>
@@ -3014,7 +2995,7 @@
         <p>Для получения услуги Заказчику необходимо:</p>
         <ul>
           <li>Загрузить фотографию автомобиля и получить результат анализа на car-scan.ru</li>
-          <li>Нажать «Скачать PDF» и оплатить отчёт</li>
+          <li>Нажать «Скачать PDF» и оплатить скачивание</li>
           <li>После подтверждения оплаты — кнопка скачивания активируется автоматически</li>
         </ul>
 
@@ -3026,7 +3007,7 @@
         <h2>4. Права и обязанности сторон</h2>
         <p><strong>Исполнитель обязуется:</strong></p>
         <ul>
-          <li>Предоставить доступ к сервису немедленно после подтверждения оплаты</li>
+          <li>Предоставить PDF для скачивания после подтверждения оплаты</li>
           <li>Обеспечивать работоспособность сервиса не менее 95% времени в месяц</li>
           <li>Уведомлять Заказчика об изменениях условий за 7 дней по email</li>
         </ul>
@@ -3270,7 +3251,7 @@
   });
 
   async function downloadPDF() {
-    if (!isReportUnlocked(lastAnalysisResult)) {
+    if (!canDownloadPDF(lastAnalysisResult)) {
       showPaywall();
       return;
     }
@@ -3571,11 +3552,19 @@
     lastAnalysisInspection = checkout.inspection_type;
     renderResult(lastAnalysisResult);
     try {
+      if (lastAnalysisResult.report_unlocked === false) {
+        const report = await requestFullReport(checkout.report_id).catch(() => null);
+        if (report?.ok) {
+          lastAnalysisResult = await report.json();
+          renderResult(lastAnalysisResult);
+        }
+      }
       for (let attempt = 0; attempt < 5; attempt++) {
         if (attempt) await new Promise(resolve => setTimeout(resolve, 2000));
         const res = await requestFullReport(checkout.report_id, checkout.payment_id).catch(() => null);
-        if (res?.ok) {
-          lastAnalysisResult = await res.json();
+        const result = res?.ok ? await res.json() : null;
+        if (result?.pdf_unlocked === true) {
+          lastAnalysisResult = result;
           renderResult(lastAnalysisResult);
           localStorage.removeItem('ao_report_checkout:' + checkout.report_id);
           localStorage.removeItem('ao_report_attempt:' + checkout.report_id);
@@ -3696,7 +3685,7 @@
     banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);' +
       'background:#111;color:#fff;padding:12px 20px;font-size:13px;z-index:9999;' +
       'border-radius:2px;box-shadow:0 4px 12px rgba(0,0,0,.3);white-space:nowrap;';
-    banner.textContent = 'Оплата подтверждена. Полный отчёт и PDF доступны.';
+    banner.textContent = 'Оплата подтверждена. PDF доступен для скачивания.';
     document.body.appendChild(banner);
     setTimeout(() => banner.remove(), 5000);
   }
