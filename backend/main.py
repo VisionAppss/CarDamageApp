@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import json
 import logging
+import math
 import os
 import uuid
 import secrets
@@ -216,6 +217,11 @@ class PartPriceRequest(BaseModel):
     oem: str = Field(min_length=1, max_length=60)
     fitment_confirmed: Literal[True]
 
+
+class ServiceSearchRequest(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
 class VerifyCodeRequest(BaseModel):
     email: str
     code: str
@@ -311,11 +317,14 @@ elif VISION_PROVIDER == 'yandex':
 else:
     raise RuntimeError('CARSCAN_VISION_PROVIDER должен быть yandex или selectel')
 
-ai_client = openai.OpenAI(
+ai_client = openai.AsyncOpenAI(
     api_key=vision_api_key,
     base_url=vision_base_url,
-    http_client=httpx.Client(timeout=60.0),
+    http_client=httpx.AsyncClient(timeout=httpx.Timeout(95.0, connect=10.0)),
+    max_retries=0,
 )
+VISION_DEADLINE_SECONDS = 105
+TWOGIS_API_KEY = os.getenv('TWOGIS_API_KEY', '').strip()
 
 
 # === FASTAPI ===
@@ -351,10 +360,27 @@ async def startup():
                 paid_at TIMESTAMPTZ
             )
         """)
+        await conn.execute("""
+            ALTER TABLE analysis_reports ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;
+            CREATE TABLE IF NOT EXISTS analysis_attempts (
+                id UUID PRIMARY KEY,
+                user_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
+                audience TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                inspection_type TEXT NOT NULL,
+                photo_count INTEGER NOT NULL,
+                started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                finished_at TIMESTAMPTZ,
+                http_status INTEGER,
+                error_code TEXT
+            );
+        """)
 
 
 @app.on_event("shutdown")
 async def shutdown():
+    await ai_client.close()
     await app.state.pool.close()
 
 
@@ -851,7 +877,7 @@ async def get_analyses(user_id: str, limit: int = 20, x_session_token: Optional[
                         ELSE r.result || jsonb_build_object('pdf_unlocked', r.paid_at IS NOT NULL)
                    END AS result, a.photo_data, a.photo_mime
             FROM analyses a
-            LEFT JOIN analysis_reports r ON r.id::text = a.result->>'report_id'
+            LEFT JOIN analysis_reports r ON r.id::text = a.result->>'report_id' AND NOT r.is_admin
             WHERE a.user_id = $1
             ORDER BY a.created_at DESC
             LIMIT $2
@@ -911,6 +937,57 @@ async def listing_photos(data: ListingPhotoRequest):
     return JSONResponse({"photos": photos}, headers={"Cache-Control": "no-store"})
 
 
+@app.post("/services/nearby")
+async def nearby_services(data: ServiceSearchRequest, response: Response):
+    if not TWOGIS_API_KEY:
+        raise HTTPException(503, "Каталог автосервисов временно недоступен")
+
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        try:
+            upstream = await client.get(
+                "https://catalog.api.2gis.com/3.0/items",
+                params={
+                    "q": "кузовной ремонт", "point": f"{data.longitude},{data.latitude}",
+                    "radius": 5000, "type": "branch", "sort": "distance", "page_size": 15,
+                    "fields": "items.point", "key": TWOGIS_API_KEY,
+                },
+            )
+            if upstream.status_code == 404:
+                items = []
+            else:
+                upstream.raise_for_status()
+                payload = upstream.json()
+                if payload.get("meta", {}).get("code", 200) not in (200, 404):
+                    raise ValueError("2GIS could not complete search")
+                items = payload.get("result", {}).get("items") or []
+        except (httpx.HTTPError, ValueError):
+            raise HTTPException(502, "Не удалось получить данные каталога автосервисов")
+
+    services = []
+    origin_lat = math.radians(data.latitude)
+    for item in items:
+        point = item.get("point") or {}
+        lat, lon = point.get("lat"), point.get("lon")
+        if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
+            continue
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180) or not item.get("name"):
+            continue
+        lat_radians = math.radians(lat)
+        haversine = (
+            math.sin((lat_radians - origin_lat) / 2) ** 2
+            + math.cos(origin_lat) * math.cos(lat_radians)
+            * math.sin(math.radians(lon - data.longitude) / 2) ** 2
+        )
+        distance_km = 12742 * math.asin(math.sqrt(min(1, haversine)))
+        if distance_km <= 5:
+            services.append({
+                "name": item["name"], "address": item.get("address_name") or "",
+                "latitude": lat, "longitude": lon, "distance_km": distance_km,
+            })
+    response.headers["Cache-Control"] = "no-store"
+    return {"services": sorted(services, key=lambda item: item["distance_km"])[:5]}
+
+
 @app.post("/parts/quote")
 async def parts_quote(data: PartPriceRequest, response: Response):
     response.headers["Cache-Control"] = "no-store"
@@ -934,7 +1011,7 @@ async def analyze_image(
 ):
     """Анализ фото. Гость — без токена, авторизованный — с x-session-token."""
     current_user = await resolve_session(x_session_token, app.state.pool)
-    return await run_analysis(file, inspection_type, extra_files, current_user=current_user)
+    return await record_analysis(file, inspection_type, extra_files, current_user=current_user)
 
 
 @app.post("/admin/analyze", dependencies=[Depends(require_admin)])
@@ -943,12 +1020,55 @@ async def admin_analyze_image(
     extra_files: List[UploadFile] = File(default=[]),
     inspection_type: str = Form(default="страховой случай"),
 ):
-    return await run_analysis(file, inspection_type, extra_files, full_report=True)
+    return await record_analysis(file, inspection_type, extra_files, full_report=True)
+
+
+async def record_analysis(
+    file: UploadFile, inspection_type: str, extra_files: List[UploadFile],
+    *, current_user: Optional[dict] = None, full_report: bool = False,
+):
+    report_id = uuid.uuid4()
+    start = time.monotonic()
+    async with app.state.pool.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO analysis_attempts (id, user_id, audience, provider, model, inspection_type, photo_count)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        """, report_id, current_user["id"] if current_user else None,
+            "admin" if full_report else "account" if current_user else "guest",
+            VISION_PROVIDER, vision_model, inspection_type, 1 + len(extra_files))
+    status, error_code = 200, None
+    try:
+        return await run_analysis(
+            file, inspection_type, extra_files, report_id=report_id,
+            current_user=current_user, full_report=full_report,
+        )
+    except HTTPException as exc:
+        status = exc.status_code
+        error_code = (exc.headers or {}).get("X-Analysis-Error", "validation" if status < 500 else "analysis_failed")
+        raise
+    except asyncio.CancelledError:
+        status, error_code = 499, "cancelled"
+        raise
+    except Exception:
+        status, error_code = 500, "internal_error"
+        raise
+    finally:
+        logger.info(
+            "Vision analysis finished: id=%s provider=%s model=%s status=%s error=%s elapsed_ms=%d",
+            report_id, VISION_PROVIDER, vision_model, status, error_code, (time.monotonic() - start) * 1000,
+        )
+        try:
+            async with app.state.pool.acquire() as conn:
+                await conn.execute("""
+                    UPDATE analysis_attempts SET finished_at = NOW(), http_status = $2, error_code = $3 WHERE id = $1
+                """, report_id, status, error_code)
+        except Exception:
+            logger.exception("Unable to finalize analysis attempt %s", report_id)
 
 
 async def run_analysis(
     file: UploadFile, inspection_type: str, extra_files: List[UploadFile],
-    *, current_user: Optional[dict] = None, full_report: bool = False,
+    *, report_id: uuid.UUID, current_user: Optional[dict], full_report: bool,
 ):
     if len(extra_files) >= MAX_PHOTOS:
         raise HTTPException(status_code=400, detail=f"Загрузите не более {MAX_PHOTOS} фото")
@@ -977,7 +1097,6 @@ async def run_analysis(
     encoded_images = [(mime, base64.b64encode(data).decode('ascii')) for mime, data in images]
     base64_image = encoded_images[0][1]
 
-    # Повторяем запрос при ошибках соединения.
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": [
@@ -988,35 +1107,33 @@ async def run_analysis(
             ],
         ]}
     ]
-    response = None
-    for attempt in range(3):
-        try:
-            response = await asyncio.to_thread(
-                ai_client.chat.completions.create,
+    try:
+        async with asyncio.timeout(VISION_DEADLINE_SECONDS):
+            response = await ai_client.chat.completions.create(
                 model=vision_model_id,
                 temperature=0.1,
                 max_tokens=8000,
                 messages=messages,
             )
-            break
-        except openai.APITimeoutError:
-            raise HTTPException(status_code=504, detail="Нейросеть не ответила вовремя, попробуйте ещё раз")
-        except openai.APIConnectionError:
-            if attempt < 2:
-                await asyncio.sleep(2 ** attempt)
-            continue
-        except openai.APIStatusError as e:
-            status = e.status_code
-            logger.error("Vision API error: provider=%s status=%s request_id=%s", VISION_PROVIDER, status, e.request_id)
-            if status == 401:
-                raise HTTPException(status_code=502, detail="Ошибка авторизации нейросети: проверьте API-ключ")
-            if status == 429:
-                raise HTTPException(status_code=502, detail="Превышен лимит запросов к нейросети, попробуйте позже")
-            if status == 503:
-                raise HTTPException(status_code=502, detail="Нейросеть временно недоступна, попробуйте позже")
-            raise HTTPException(status_code=502, detail=f"Ошибка нейросети: HTTP {status}")
-    if response is None:
-        raise HTTPException(status_code=502, detail="Нейросеть недоступна (нет соединения). Попробуйте позже.")
+    except (TimeoutError, openai.APITimeoutError) as exc:
+        raise HTTPException(504, "Нейросеть не успела ответить. Попробуйте повторить анализ с меньшим числом фото.",
+                            headers={"X-Analysis-Error": "vision_timeout"}) from exc
+    except openai.APIConnectionError as exc:
+        raise HTTPException(502, "Не удалось соединиться с нейросетью. Попробуйте позже.",
+                            headers={"X-Analysis-Error": "vision_connection"}) from exc
+    except openai.APIStatusError as exc:
+        status = exc.status_code
+        logger.warning("Vision API error: provider=%s status=%s request_id=%s", VISION_PROVIDER, status, exc.request_id)
+        messages_by_status = {
+            401: "Ошибка авторизации нейросети: проверьте API-ключ",
+            429: "Превышен лимит запросов к нейросети, попробуйте позже",
+            503: "Нейросеть временно недоступна, попробуйте позже",
+            504: "Провайдер нейросети не успел обработать запрос",
+        }
+        raise HTTPException(
+            504 if status == 504 else 502, messages_by_status.get(status, f"Ошибка нейросети: HTTP {status}"),
+            headers={"X-Analysis-Error": f"vision_http_{status}"},
+        ) from exc
 
     finish_reason = response.choices[0].finish_reason if response.choices else None
     raw = response.choices[0].message.content if response.choices else None
@@ -1030,7 +1147,8 @@ async def run_analysis(
     try:
         parsed = json.loads(cleaned)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=502, detail=f"Невалидный JSON от модели: {raw[:200]}")
+        raise HTTPException(502, "Модель вернула некорректный ответ",
+                            headers={"X-Analysis-Error": "vision_invalid_json"})
 
     if parsed.get("error") == "no_vehicle":
         raise HTTPException(status_code=422, detail=parsed.get("message", "На фото не обнаружено транспортное средство"))
@@ -1054,18 +1172,13 @@ async def run_analysis(
         "estimate_excludes_parts": True,
     }
 
-    if full_report:
-        return JSONResponse(
-            {**result, "report_unlocked": True, "pdf_unlocked": True},
-            headers={"Cache-Control": "no-store"},
-        )
-
-    report_id = uuid.uuid4()
-    result.update(report_id=str(report_id), report_unlocked=True)
+    result["report_unlocked"] = True
+    if not full_report:
+        result["report_id"] = str(report_id)
     async with app.state.pool.acquire() as conn, conn.transaction():
         await conn.execute(
-            "INSERT INTO analysis_reports (id, result) VALUES ($1, $2)",
-            report_id, json.dumps(result),
+            "INSERT INTO analysis_reports (id, result, is_admin) VALUES ($1, $2, $3)",
+            report_id, json.dumps(result), full_report,
         )
         if current_user:
             await conn.execute("""
@@ -1078,7 +1191,7 @@ async def run_analysis(
                 current_user["id"]
             )
 
-    return JSONResponse({**result, "pdf_unlocked": False}, headers={"Cache-Control": "no-store"})
+    return JSONResponse({**result, "pdf_unlocked": full_report}, headers={"Cache-Control": "no-store"})
 
 
 class AnalysisSaveRequest(BaseModel):
@@ -1127,7 +1240,7 @@ async def create_payment(data: PaymentCreateRequest):
     metadata = {"user_id": data.user_id or "", "type": ptype}
     if data.report_id:
         async with app.state.pool.acquire() as conn:
-            report = await conn.fetchrow("SELECT paid_at FROM analysis_reports WHERE id = $1", data.report_id)
+            report = await conn.fetchrow("SELECT paid_at FROM analysis_reports WHERE id = $1 AND NOT is_admin", data.report_id)
         if report is None:
             raise HTTPException(status_code=404, detail="Отчёт не найден")
         if report["paid_at"]:
@@ -1182,7 +1295,7 @@ async def create_payment(data: PaymentCreateRequest):
 @app.post("/report/access")
 async def access_report(data: ReportAccessRequest):
     async with app.state.pool.acquire() as conn:
-        row = await conn.fetchrow("SELECT result, paid_at FROM analysis_reports WHERE id = $1", data.report_id)
+        row = await conn.fetchrow("SELECT result, paid_at FROM analysis_reports WHERE id = $1 AND NOT is_admin", data.report_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Отчёт не найден")
     pdf_unlocked = row["paid_at"] is not None

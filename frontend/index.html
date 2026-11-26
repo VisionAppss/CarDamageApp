@@ -552,180 +552,13 @@
       .vehicle-card { flex-direction: column; align-items: flex-start; }
     }
 
-    /* ── Services section ── */
-    .services-wrap { display: none; margin-top: 1px; }
-    .services-wrap.visible { display: block; }
-
-    .services-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px 24px;
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-bottom: none;
-    }
-    .services-head-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--muted);
-      font-weight: 500;
-    }
-    .services-head-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .geo-status {
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .geo-status.locating::before {
-      content: '';
-      display: inline-block;
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: #f59e0b;
-      margin-right: 5px;
-      animation: pulse 1s ease-in-out infinite;
-    }
-    .geo-status.located::before {
-      content: '';
-      display: inline-block;
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--c-green);
-      margin-right: 5px;
-    }
-    .geo-status.error::before {
-      content: '';
-      display: inline-block;
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--c-red);
-      margin-right: 5px;
-    }
-
-    /* Map */
-    .services-map {
-      width: 100%;
-      height: 260px;
-      background: #e8e8e6;
-      border: 1px solid var(--border);
-      border-bottom: none;
-      position: relative;
-      overflow: hidden;
-    }
-    .services-map iframe {
-      width: 100%; height: 100%;
-      border: none;
-      display: block;
-    }
-    .map-placeholder {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .map-placeholder svg { opacity: 0.3; }
-
-    /* Service cards */
-    .service-card {
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-top: none;
-      padding: 14px 16px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px 16px;
-      align-items: start;
-      transition: background 0.15s;
-    }
-    .service-card:hover { background: var(--surface); }
-
-    .service-name { font-size: 14px; font-weight: 500; color: var(--black); margin-bottom: 3px; }
-    .service-address { font-size: 12px; color: var(--muted); margin-bottom: 6px; line-height: 1.4; }
-
-    .service-tags { display: flex; flex-wrap: wrap; gap: 5px; }
-    .service-tag {
-      font-size: 11px;
-      padding: 2px 7px;
-      border: 1px solid var(--border);
-      color: #555;
-    }
-    .service-tag.price {
-      border-color: var(--black);
-      color: var(--black);
-      font-weight: 500;
-    }
-
-    .service-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-    .service-dist {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--black);
-      white-space: nowrap;
-    }
-    .service-rating {
-      font-size: 11px;
-      color: var(--muted);
-    }
-    .service-links { display: flex; gap: 6px; }
-    .service-link {
-      font-size: 11px;
-      padding: 4px 8px;
-      border: 1px solid var(--border-strong);
-      color: var(--black);
-      text-decoration: none;
-      background: none;
-      cursor: pointer;
-      font-family: inherit;
-      transition: background 0.15s, color 0.15s;
-      white-space: nowrap;
-    }
-    .service-link:hover { background: var(--black); color: var(--white); }
-
-    .services-error {
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-top: none;
-      padding: 20px 24px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .services-loading {
-      background: var(--white);
-      border: 1px solid var(--border);
-      border-top: none;
-      padding: 20px 24px;
-      font-size: 12px;
-      color: var(--muted);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .services-loading .step-dot {
-      background: var(--muted);
-      animation: pulse 1s ease-in-out infinite;
-    }
-
-    @media (max-width: 480px) {
-      .service-card { grid-template-columns: 1fr; }
-      .service-right { flex-direction: row; align-items: center; flex-wrap: wrap; }
-    }
+    .services-wrap { margin-top: 16px; }
+    .services-wrap h2 { margin: 0 0 8px; font-size: 18px; }
+    .services-wrap p { margin: 8px 0 12px; color: var(--muted); }
+    .services-list { display: grid; gap: 8px; padding: 0; list-style: none; }
+    .service-card { padding: 12px 0; border-top: 1px solid var(--border); }
+    .service-card p { margin: 4px 0; }
+    .service-link { color: var(--black); text-decoration: underline; }
 
     /* ── User bar ── */
     .user-bar {
@@ -1546,10 +1379,14 @@
   </div>
 
   <!-- Services (отключено временно) -->
-  <!-- <div class="services-wrap" id="servicesWrap">...</div> -->
-  <div class="services-wrap" id="servicesWrap" style="display:none!important"></div>
-
-
+  <section class="card services-wrap" id="servicesWrap" hidden aria-labelledby="servicesTitle">
+    <h2 id="servicesTitle">Кузовные автосервисы рядом</h2>
+    <p>Для поиска по геопозиции координаты передаются в 2ГИС по вашему запросу.</p>
+    <button class="btn-outline" id="findServices" type="button">Найти по моей геопозиции</button>
+    <p id="servicesStatus" role="status"></p>
+    <ul class="services-list" id="servicesList"></ul>
+    <a class="service-link" id="servicesMapLink" target="_blank" rel="noopener noreferrer" href="https://yandex.ru/maps/?text=Кузовной%20ремонт">Открыть поиск на карте</a>
+  </section>
 
   <div class="footnote">
     Оценка носит предварительный характер.<br>
@@ -2040,7 +1877,8 @@
           throw new Error('Войдите в админку снова и повторите анализ.');
         }
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || 'Ошибка сервера ' + res.status);
+        const fallback = res.status === 504 ? 'Сервер не успел завершить анализ. Попробуйте повторить.' : 'Ошибка сервера ' + res.status;
+        throw new Error(typeof err.detail === 'string' ? err.detail : fallback);
       }
 
       const json = await res.json();
@@ -2286,9 +2124,7 @@
     printButton.disabled = false;
     printButton.style.display = '';
 
-    // Ближайшие сервисы временно отключены
-    // const damageTypes = ((json && json.data && json.data.damages) ? json.data.damages : (damages || [])).map(d => d.type);
-    // showServices(damageTypes);
+    document.getElementById('servicesWrap').hidden = adminAnalysis;
   }
 
   // ── Helpers ──
@@ -2350,7 +2186,11 @@
     errorBox.classList.add('visible');
   }
   function hideError()  { errorBox.classList.remove('visible'); }
-  function hideResult() { resultWrap.classList.remove('visible'); resultWrap.innerHTML = ''; }
+  function hideResult() {
+    resultWrap.classList.remove('visible');
+    resultWrap.innerHTML = '';
+    resetServices();
+  }
 
   // ── Damage Diagram ──────────────────────────────────────────────────────
 
@@ -2699,221 +2539,86 @@
     });
   }
 
-  // ── Services / Geolocation ──────────────────────────────────────────────
+  let servicesRequest;
 
-  // Коэффициенты цен по регионам (город определяем по координатам через 2GIS geocode)
-  const REGION_MULTIPLIERS = {
-    'Москва':          1.0,
-    'Санкт-Петербург': 0.92,
-    'default':         0.72,
-  };
-
-  // Базовые цены (Москва) за тип повреждения ₽
-  const BASE_PRICES = {
-    scratch:      { min: 3000,  max: 12000  },
-    dent:         { min: 5000,  max: 25000  },
-    crack:        { min: 8000,  max: 40000  },
-    deformation:  { min: 15000, max: 80000  },
-    corrosion:    { min: 6000,  max: 30000  },
-    other:        { min: 3000,  max: 15000  },
-  };
-
-  let userCoords = null;
-  let regionName = 'default';
-  let lastDamageTypes = [];
-
-  function getDistanceKm(lat1, lng1, lat2, lng2) {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2)**2 +
-              Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
-    return R * 2 * Math.asin(Math.sqrt(a));
-  }
-
-  function fmtDist(km) {
-    return km < 1 ? Math.round(km * 1000) + ' м' : km.toFixed(1) + ' км';
-  }
-
-  function localPrice(type, multiplier) {
-    const b = BASE_PRICES[type] || BASE_PRICES.other;
-    return {
-      min: Math.round(b.min * multiplier / 100) * 100,
-      max: Math.round(b.max * multiplier / 100) * 100,
-    };
-  }
-
-  function showServices(damageTypes) {
-    lastDamageTypes = damageTypes || [];
-    const wrap = document.getElementById('servicesWrap');
-    const geoStatus = document.getElementById('geoStatus');
-    wrap.classList.add('visible');
-    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-    geoStatus.className = 'geo-status locating';
-    geoStatus.textContent = 'Определяем геопозицию';
-    setServicesLoading('Запрашиваем доступ к геолокации…');
-
-    if (!navigator.geolocation) {
-      geoStatus.className = 'geo-status error';
-      geoStatus.textContent = 'Геолокация недоступна';
-      setServicesError('Браузер не поддерживает геолокацию. Включите вручную в настройках.');
-      renderMapPlaceholder();
-      return;
+  function mapSearchURL(latitude, longitude, text = 'Кузовной ремонт') {
+    const url = new URL('https://yandex.ru/maps/');
+    url.searchParams.set('text', text);
+    if (latitude != null && longitude != null) {
+      url.searchParams.set('ll', longitude + ',' + latitude);
+      url.searchParams.set('z', '14');
     }
-
-    navigator.geolocation.getCurrentPosition(
-      pos => onGeoSuccess(pos, damageTypes),
-      err => onGeoError(err),
-      { timeout: 10000, maximumAge: 60000 }
-    );
+    return url.href;
   }
 
-  async function onGeoSuccess(pos, damageTypes) {
-    const { latitude: lat, longitude: lng } = pos.coords;
-    userCoords = { lat, lng };
+  function resetServices() {
+    servicesRequest?.abort();
+    const section = document.getElementById('servicesWrap');
+    section.hidden = true;
+    document.getElementById('findServices').disabled = false;
+    document.getElementById('servicesStatus').textContent = '';
+    document.getElementById('servicesList').replaceChildren();
+    document.getElementById('servicesMapLink').href = mapSearchURL();
+  }
 
-    const geoStatus = document.getElementById('geoStatus');
-    geoStatus.className = 'geo-status located';
-    geoStatus.textContent = 'Местоположение определено';
-    setServicesLoading('Ищем ближайшие сервисы…');
-
-    // Определяем город через 2GIS geocode для коэффициента цен
+  async function findNearbyServices() {
+    const status = document.getElementById('servicesStatus');
+    const button = document.getElementById('findServices');
+    const list = document.getElementById('servicesList');
+    const controller = new AbortController();
+    servicesRequest = controller;
+    button.disabled = true;
+    list.replaceChildren();
+    status.textContent = 'Определяем вашу геопозицию…';
     try {
-      const geoRes = await fetch(
-        `https://catalog.api.2gis.com/3.0/items/geocode?lat=${lat}&lng=${lng}&fields=items.address&key=DEMO`
-      );
-      const geoData = await geoRes.json();
-      const city = geoData?.result?.items?.[0]?.address?.city_name || '';
-      regionName = REGION_MULTIPLIERS[city] !== undefined ? city : 'default';
-    } catch(e) {
-      regionName = 'default';
-    }
-
-    // Ищем автосервисы через 2GIS catalog
-    try {
-      const KEY = window.TWOGIS_API_KEY || 'DEMO'; // подставь реальный ключ
-      const url = `https://catalog.api.2gis.com/3.0/items?q=%D0%B0%D0%B2%D1%82%D0%BE%D1%81%D0%B5%D1%80%D0%B2%D0%B8%D1%81+%D0%BA%D1%83%D0%B7%D0%BE%D0%B2%D0%BD%D0%BE%D0%B9+%D1%80%D0%B5%D0%BC%D0%BE%D0%BD%D1%82&point=${lng},${lat}&radius=5000&type=branch&fields=items.point,items.address,items.contact_groups,items.rating,items.name_ex&page_size=5&key=${KEY}`;
-      const res = await fetch(url);
-      const data = await res.json();
-      const items = data?.result?.items || [];
-
-      if (items.length === 0) {
-        setServicesError('Сервисы в радиусе 5 км не найдены. Попробуйте позже.');
-        renderMap(lat, lng, []);
+      if (!navigator.geolocation) {
+        status.textContent = 'Геолокация недоступна. Откройте поиск на карте.';
         return;
       }
-
-      const services = items.map(item => {
-        const sLat = item.point?.lat;
-        const sLng = item.point?.lon;
-        const dist = (sLat && sLng) ? getDistanceKm(lat, lng, sLat, sLng) : null;
-        const phone = item.contact_groups?.[0]?.contacts?.find(c => c.type === 'phone')?.value || null;
-        const website = item.contact_groups?.[0]?.contacts?.find(c => c.type === 'website')?.value || null;
-        return {
-          name: item.name,
-          address: item.address_name || '',
-          lat: sLat, lng: sLng,
-          dist, phone, website,
-          rating: item.reviews?.rating_count ? item.reviews.general_rating : null,
-        };
-      }).sort((a,b) => (a.dist||99) - (b.dist||99));
-
-      renderMap(lat, lng, services);
-      renderServiceCards(services, damageTypes);
-
-    } catch(e) {
-      setServicesError('Не удалось загрузить список сервисов. Проверьте API ключ 2GIS.');
-      renderMap(lat, lng, []);
+      const { coords } = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, maximumAge: 60000 });
+      });
+      if (controller.signal.aborted) return;
+      const { latitude, longitude } = coords;
+      document.getElementById('servicesMapLink').href = mapSearchURL(latitude, longitude);
+      status.textContent = 'Ищем кузовные автосервисы в радиусе 5 км…';
+      const res = await fetch('/api/services/nearby', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude, longitude }),
+        signal: controller.signal
+      });
+      if (!res.ok) throw new Error();
+      const { services } = await res.json();
+      if (controller.signal.aborted) return;
+      for (const service of services) {
+        const card = document.createElement('li');
+        card.className = 'service-card';
+        const name = document.createElement('strong');
+        name.textContent = service.name;
+        const detail = document.createElement('p');
+        const km = service.distance_km;
+        const distance = km < 1 ? Math.round(km * 1000) + ' м' : km.toFixed(1) + ' км';
+        detail.textContent = [service.address, distance + ' по прямой'].filter(Boolean).join(' · ');
+        const link = document.createElement('a');
+        link.className = 'service-link';
+        const maps = new URL('https://2gis.ru/geo/' + service.longitude + ',' + service.latitude);
+        link.href = maps.href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'Открыть в 2ГИС';
+        card.append(name, detail, link);
+        list.append(card);
+      }
+      status.textContent = services.length ? 'Данные каталога 2ГИС' : 'В радиусе 5 км сервисы не найдены. Посмотрите другие варианты на карте.';
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      status.textContent = error.code === 1
+        ? 'Доступ к геопозиции отключён. Можно найти сервис вручную на карте.'
+        : 'Не удалось загрузить список. Попробуйте поиск на карте.';
+    } finally {
+      if (!controller.signal.aborted) button.disabled = false;
     }
-  }
-
-  function onGeoError(err) {
-    const geoStatus = document.getElementById('geoStatus');
-    geoStatus.className = 'geo-status error';
-    const msgs = {
-      1: 'Доступ к геолокации запрещён — разрешите в настройках браузера',
-      2: 'Не удалось определить местоположение',
-      3: 'Превышено время ожидания геолокации',
-    };
-    geoStatus.textContent = msgs[err.code] || 'Ошибка геолокации';
-    setServicesError(msgs[err.code] || 'Ошибка геолокации.');
-    renderMapPlaceholder();
-  }
-
-  function renderMap(lat, lng, services) {
-    const map = document.getElementById('servicesMap');
-    // Формируем URL для 2GIS iframe с метками
-    const markers = services.slice(0,5).map((s,i) =>
-      s.lat && s.lng ? `${s.lng},${s.lat}` : null
-    ).filter(Boolean).join('~');
-
-    // Карта через 2GIS WebGL (embed)
-    const mapUrl = `https://widgets.2gis.com/widget?type=firmsonmap&options=%7B%22pos%22%3A%7B%22lat%22%3A${lat}%2C%22lon%22%3A${lng}%2C%22zoom%22%3A14%7D%7D`;
-    map.innerHTML = `<iframe src="${mapUrl}" allowfullscreen loading="lazy"></iframe>`;
-  }
-
-  function renderMapPlaceholder(msg) {
-    const map = document.getElementById('servicesMap');
-    map.innerHTML = `<div class="map-placeholder">
-      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="16" cy="14" r="5" stroke="#181818" stroke-width="1.5"/>
-        <path d="M16 3C10.477 3 6 7.477 6 13c0 7 10 18 10 18s10-11 10-18c0-5.523-4.477-10-10-10z" stroke="#181818" stroke-width="1.5" fill="none"/>
-      </svg>
-      <span>${msg || 'Карта недоступна'}</span>
-    </div>`;
-  }
-
-  function renderServiceCards(services, damageTypes) {
-    const list = document.getElementById('servicesList');
-    const multiplier = REGION_MULTIPLIERS[regionName] ?? REGION_MULTIPLIERS.default;
-    const types = damageTypes.length ? damageTypes : ['other'];
-
-    // Считаем суммарный диапазон цен по повреждениям
-    let totalMin = 0, totalMax = 0;
-    types.forEach(t => {
-      const p = localPrice(t, multiplier);
-      totalMin += p.min; totalMax += p.max;
-    });
-
-    list.innerHTML = services.map(s => {
-      const distTag = s.dist != null ? `<div class="service-tag">${fmtDist(s.dist)}</div>` : '';
-      const ratingTag = s.rating ? `<div class="service-tag">★ ${Number(s.rating).toFixed(1)}</div>` : '';
-      const priceTag = `<div class="service-tag price">${fmt(totalMin)} — ${fmt(totalMax)}</div>`;
-
-      const phoneLink = s.phone
-        ? `<a class="service-link" href="tel:${s.phone.replace(/\D/g,'')}">Позвонить</a>`
-        : '';
-      const mapLink = s.lat && s.lng
-        ? `<a class="service-link" href="https://2gis.ru/geo/${s.lng},${s.lat}" target="_blank">На карте</a>`
-        : `<a class="service-link" href="https://2gis.ru/search/${encodeURIComponent(s.name)}" target="_blank">2GIS</a>`;
-      const webLink = s.website
-        ? `<a class="service-link" href="${s.website}" target="_blank">Сайт</a>`
-        : '';
-
-      return `<div class="service-card">
-        <div>
-          <div class="service-name">${esc(s.name)}</div>
-          <div class="service-address">${esc(s.address)}</div>
-          <div class="service-tags">
-            ${distTag}${ratingTag}${priceTag}
-          </div>
-        </div>
-        <div class="service-right">
-          <div class="service-links">${phoneLink}${mapLink}${webLink}</div>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  function setServicesLoading(msg) {
-    document.getElementById('servicesList').innerHTML =
-      `<div class="services-loading"><div class="step-dot"></div>${msg}</div>`;
-  }
-
-  function setServicesError(msg) {
-    document.getElementById('servicesList').innerHTML =
-      `<div class="services-error">${msg}</div>`;
   }
 
   // ── Info popups ──
@@ -3235,6 +2940,7 @@
       if (e.target.files.length) handleFiles(e.target.files);
     });
     analyzeBtn.addEventListener('click', doAnalyze);
+    document.getElementById('findServices').addEventListener('click', findNearbyServices);
     document.getElementById('listingForm').addEventListener('submit', importListing);
 
     initAuth();
@@ -3382,7 +3088,6 @@
     removeFile();
     hideError();
     hideResult();
-    // document.getElementById('servicesWrap').classList.remove('visible');
     document.getElementById('paywall').classList.remove('visible');
     document.getElementById('printBtn').style.display = 'none';
 

@@ -39,6 +39,7 @@ services:
       - CARSCAN_VISION_PROVIDER=${CARSCAN_VISION_PROVIDER:-yandex}
       - SELECTEL_API_KEY=${SELECTEL_API_KEY:-}
       - SELECTEL_BASE_URL=${SELECTEL_BASE_URL:-}
+      - TWOGIS_API_KEY=${TWOGIS_API_KEY:-}
       - DB_HOST=db
       - DB_PORT=5432
       - DB_NAME=avtootsenka
