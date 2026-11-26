@@ -37,7 +37,7 @@ from pydantic import BaseModel, Field, field_validator
 import yookassa
 from yookassa import Configuration as YKConfig, Payment as YKPayment
 from avito import ListingImportError, MAX_PHOTOS, PHOTO_TYPES, import_listing_photos
-from parts_catalog import UNCONFIRMED_PRICE, find_quote
+from parts_catalog import UNCONFIRMED_PRICE, find_quote, resolve_catalog_path
 
 
 # === КОНФИГУРАЦИЯ ===
@@ -61,7 +61,6 @@ SMTP_FROM = config.get('smtp', 'from',     fallback=SMTP_USER)
 
 UPLOAD_DIR = Path(os.getenv('UPLOAD_DIR', '/app/uploads'))
 UPLOAD_DIR.mkdir(exist_ok=True)
-PARTS_CSV = Path(os.getenv("CARSCAN_PARTS_CSV", "/app/price-data/autobody.csv"))
 
 ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', '')
 ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH', '')
@@ -1012,13 +1011,17 @@ async def nearby_services(data: ServiceSearchRequest, response: Response):
 @app.post("/parts/quote")
 async def parts_quote(data: PartPriceRequest, response: Response):
     response.headers["Cache-Control"] = "no-store"
+    path = resolve_catalog_path(os.getenv("CARSCAN_PARTS_CSV"))
     try:
         max_age = int(os.getenv("CARSCAN_PARTS_MAX_AGE_HOURS", "24"))
         quote = await asyncio.to_thread(
-            find_quote, PARTS_CSV, vehicle=data.vehicle, oem=data.oem,
+            find_quote, path, vehicle=data.vehicle, oem=data.oem,
             now=datetime.now().astimezone(), max_age_hours=max_age,
         ) if max_age > 0 else None
-    except (OSError, UnicodeError, ValueError):
+    except FileNotFoundError:
+        quote = None
+    except (OSError, UnicodeError, ValueError) as exc:
+        logger.warning("Parts catalog could not be read: file=%s error=%s", path.name, exc)
         quote = None
     return {"quote": quote, "message": None if quote else UNCONFIRMED_PRICE}
 

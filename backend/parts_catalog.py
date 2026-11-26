@@ -3,6 +3,7 @@ import csv
 import re
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 MOSCOW = ZoneInfo("Europe/Moscow")
@@ -11,6 +12,17 @@ WAREHOUSES = {
     "stock_moscow_kapotnya": "Москва, Капотня",
 }
 UNCONFIRMED_PRICE = "Цена детали не подтверждена"
+REQUIRED_COLUMNS = {
+    "vehicle", "supplier_sku", "oem_raw", "price_rub", "price_type", "snapshot_moscow",
+    *WAREHOUSES,
+}
+
+
+def resolve_catalog_path(configured, directory=Path("/app/price-data")):
+    if configured:
+        return Path(configured)
+    catalog = directory / "autobody_carscan_catalog.csv"
+    return catalog if catalog.is_file() else directory / "autobody.csv"
 
 
 def normalize_oem(value):
@@ -25,7 +37,11 @@ def find_quote(path, *, vehicle, oem, now, max_age_hours):
         return None
     latest = {}
     with path.open(encoding="utf-8-sig", newline="") as source:
-        for row in csv.DictReader(source):
+        reader = csv.DictReader(source)
+        missing = REQUIRED_COLUMNS.difference(reader.fieldnames or [])
+        if missing:
+            raise ValueError("Missing required CSV columns: " + ", ".join(sorted(missing)))
+        for row in reader:
             if (row.get("vehicle") or "").strip().casefold() != vehicle.strip().casefold():
                 continue
             sku = (row.get("supplier_sku") or "").strip()
