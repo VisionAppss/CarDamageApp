@@ -418,6 +418,9 @@
       border-style: solid;
     }
     .dmg-location { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .dmg-part { margin: 0 0 12px; }
+    .dmg-part img { display: block; width: min(100%, 280px); aspect-ratio: 3 / 2; object-fit: cover; border-radius: 6px; }
+    .dmg-part figcaption { margin-top: 4px; color: var(--muted); font-size: 12px; }
     .dmg-description { font-size: 13px; color: #444; line-height: 1.5; margin-bottom: 10px; }
 
     .dmg-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
@@ -559,6 +562,7 @@
     .service-card { padding: 12px 0; border-top: 1px solid var(--border); }
     .service-card p { margin: 4px 0; }
     .service-link { color: var(--black); text-decoration: underline; }
+    .services-map { width: 100%; height: clamp(280px, 52vw, 420px); border: 1px solid var(--border); margin: 8px 0 12px; }
 
     /* ── User bar ── */
     .user-bar {
@@ -1381,9 +1385,10 @@
   <!-- Services (отключено временно) -->
   <section class="card services-wrap" id="servicesWrap" hidden aria-labelledby="servicesTitle">
     <h2 id="servicesTitle">Кузовные автосервисы рядом</h2>
-    <p>Для поиска по геопозиции координаты передаются в 2ГИС по вашему запросу.</p>
+    <p>Если разрешить геопозицию, после анализа покажем сервисы рядом на Яндекс Картах. Список адресов загружается из 2ГИС.</p>
     <button class="btn-outline" id="findServices" type="button">Найти по моей геопозиции</button>
     <p id="servicesStatus" role="status"></p>
+    <iframe class="services-map" id="servicesMap" title="Кузовные автосервисы на Яндекс Картах" referrerpolicy="no-referrer" hidden></iframe>
     <ul class="services-list" id="servicesList"></ul>
     <a class="service-link" id="servicesMapLink" target="_blank" rel="noopener noreferrer" href="https://yandex.ru/maps/?text=Кузовной%20ремонт">Открыть поиск на карте</a>
   </section>
@@ -2049,6 +2054,7 @@
               <div class="dmg-severity" style="color:${sc};border-color:${sc}">${severityLabel(d.severity)}</div>
             </div>
             <div class="dmg-location">${esc(d.location)}</div>
+            ${renderPartImage(d.location)}
             <div class="dmg-description">${esc(d.description)}</div>
             <div class="dmg-tags">
               ${d.size_label ? `<div class="tag">Размер: ${esc(d.size_label)}</div>` : ''}
@@ -2124,7 +2130,11 @@
     printButton.disabled = false;
     printButton.style.display = '';
 
-    document.getElementById('servicesWrap').hidden = false;
+    const services = document.getElementById('servicesWrap');
+    if (services.hidden) {
+      services.hidden = false;
+      if (pageLocationRequest) loadServicesFromPageLocation();
+    }
   }
 
   // ── Helpers ──
@@ -2539,7 +2549,30 @@
     });
   }
 
+  const bodyPartImages = [
+    ['front-bumper', 'Передний бампер', /передн\S*\s+бампер|бампер\S*\s+спереди/i],
+    ['hood', 'Капот', /капот/i],
+    ['headlight', 'Фара', /фар[ауыое]|фар\b/i],
+    ['fender', 'Крыло', /крыл[оаеуы]/i],
+    ['door', 'Дверь', /двер[ьиьюея]/i],
+    ['rocker', 'Порог', /порог/i],
+    ['rear-bumper', 'Задний бампер', /задн\S*\s+бампер|бампер\S*\s+сзади/i],
+    ['trunk', 'Крышка багажника', /багажник/i],
+    ['taillight', 'Задний фонарь', /фонар[ьяюеий]/i]
+  ];
+
+  function renderPartImage(location) {
+    const matches = bodyPartImages.filter(part => part[2].test(location || ''));
+    if (matches.length !== 1) return '';
+    const [file, title] = matches[0];
+    return `<figure class="dmg-part">
+      <img src="/img/body-parts/${file}.webp" alt="${title}" width="360" height="240">
+      <figcaption>${title} · иллюстрация детали</figcaption>
+    </figure>`;
+  }
+
   let servicesRequest;
+  let pageLocationRequest;
 
   function mapSearchURL(latitude, longitude, text = 'Кузовной ремонт') {
     const url = new URL('https://yandex.ru/maps/');
@@ -2551,6 +2584,32 @@
     return url.href;
   }
 
+  function showServicesMap(latitude, longitude, text = 'Кузовной ремонт') {
+    const map = document.getElementById('servicesMap');
+    const url = new URL('https://yandex.ru/map-widget/v1/');
+    url.searchParams.set('mode', 'search');
+    url.searchParams.set('text', text);
+    url.searchParams.set('ll', longitude + ',' + latitude);
+    url.searchParams.set('z', '14');
+    map.src = url.href;
+    map.hidden = false;
+  }
+
+  function requestPageLocation() {
+    if (!navigator.geolocation) return Promise.resolve({ error: 'Геолокация недоступна.' });
+    return new Promise(resolve => {
+      navigator.geolocation.getCurrentPosition(
+        position => resolve({ coords: position.coords }),
+        error => resolve({ error }),
+        { timeout: 10000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  function loadServicesFromPageLocation() {
+    findNearbyServices(pageLocationRequest);
+  }
+
   function resetServices() {
     servicesRequest?.abort();
     const section = document.getElementById('servicesWrap');
@@ -2559,9 +2618,12 @@
     document.getElementById('servicesStatus').textContent = '';
     document.getElementById('servicesList').replaceChildren();
     document.getElementById('servicesMapLink').href = mapSearchURL();
+    const map = document.getElementById('servicesMap');
+    map.hidden = true;
+    if (map.hasAttribute('src')) map.removeAttribute('src');
   }
 
-  async function findNearbyServices() {
+  async function findNearbyServices(locationRequest) {
     const status = document.getElementById('servicesStatus');
     const button = document.getElementById('findServices');
     const list = document.getElementById('servicesList');
@@ -2575,12 +2637,12 @@
         status.textContent = 'Геолокация недоступна. Откройте поиск на карте.';
         return;
       }
-      const { coords } = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, maximumAge: 60000 });
-      });
+      const { coords, error } = await locationRequest;
+      if (error) throw error;
       if (controller.signal.aborted) return;
       const { latitude, longitude } = coords;
       document.getElementById('servicesMapLink').href = mapSearchURL(latitude, longitude);
+      showServicesMap(latitude, longitude);
       status.textContent = 'Ищем кузовные автосервисы в радиусе 5 км…';
       const res = await fetch('/api/services/nearby', {
         method: 'POST',
@@ -2604,13 +2666,16 @@
         const km = service.distance_km;
         const distance = km < 1 ? Math.round(km * 1000) + ' м' : km.toFixed(1) + ' км';
         detail.textContent = [service.address, distance + ' по прямой'].filter(Boolean).join(' · ');
-        const link = document.createElement('a');
-        link.className = 'service-link';
-        const maps = new URL('https://2gis.ru/geo/' + service.longitude + ',' + service.latitude);
-        link.href = maps.href;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.textContent = 'Открыть в 2ГИС';
+        const link = document.createElement('button');
+        link.className = 'btn-outline';
+        link.type = 'button';
+        link.textContent = 'Показать на карте';
+        link.addEventListener('click', () => {
+          const nameAndAddress = [service.name, service.address].filter(Boolean).join(', ');
+          showServicesMap(service.latitude, service.longitude, nameAndAddress);
+          document.getElementById('servicesMapLink').href = mapSearchURL(service.latitude, service.longitude, nameAndAddress);
+          document.getElementById('servicesMap').scrollIntoView({ block: 'nearest' });
+        });
         card.append(name, detail, link);
         list.append(card);
       }
@@ -2622,7 +2687,7 @@
         2: 'Браузер не смог определить геопозицию.',
         3: 'Браузер не успел определить геопозицию.'
       };
-      status.textContent = (locationErrors[error.code] || error.message || 'Не удалось загрузить список автосервисов.')
+      status.textContent = (locationErrors[error.code] || error.message || (typeof error === 'string' ? error : 'Не удалось загрузить список автосервисов.'))
         + ' Попробуйте поиск на карте.';
     } finally {
       if (!controller.signal.aborted) button.disabled = false;
@@ -2948,7 +3013,11 @@
       if (e.target.files.length) handleFiles(e.target.files);
     });
     analyzeBtn.addEventListener('click', doAnalyze);
-    document.getElementById('findServices').addEventListener('click', findNearbyServices);
+    document.getElementById('findServices').addEventListener('click', () => {
+      pageLocationRequest = requestPageLocation();
+      loadServicesFromPageLocation();
+    });
+    pageLocationRequest = requestPageLocation();
     document.getElementById('listingForm').addEventListener('submit', importListing);
 
     initAuth();
