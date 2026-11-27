@@ -374,6 +374,13 @@ async def startup():
                 http_status INTEGER,
                 error_code TEXT
             );
+            CREATE TABLE IF NOT EXISTS analysis_extra_photos (
+                analysis_id UUID NOT NULL REFERENCES analysis_attempts(id) ON DELETE CASCADE,
+                photo_number SMALLINT NOT NULL CHECK (photo_number BETWEEN 2 AND 5),
+                mime_type TEXT NOT NULL,
+                content BYTEA NOT NULL,
+                PRIMARY KEY (analysis_id, photo_number)
+            );
         """)
 
 
@@ -1120,6 +1127,13 @@ async def run_analysis(
 
     encoded_images = [(mime, base64.b64encode(data).decode('ascii')) for mime, data in images]
     base64_image = encoded_images[0][1]
+
+    if extra_files:
+        async with app.state.pool.acquire() as conn, conn.transaction():
+            await conn.executemany("""
+                INSERT INTO analysis_extra_photos (analysis_id, photo_number, mime_type, content)
+                VALUES ($1, $2, $3, $4)
+            """, [(report_id, number, mime, data) for number, (mime, data) in enumerate(images[1:], start=2)])
 
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},

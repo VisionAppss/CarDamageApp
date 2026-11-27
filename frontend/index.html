@@ -1385,7 +1385,7 @@
   <!-- Services (отключено временно) -->
   <section class="card services-wrap" id="servicesWrap" hidden aria-labelledby="servicesTitle">
     <h2 id="servicesTitle">Кузовные автосервисы рядом</h2>
-    <p>Если разрешить геопозицию, после анализа покажем сервисы рядом на Яндекс Картах. Список адресов загружается из 2ГИС.</p>
+    <p>Карта ищет кузовной ремонт в Яндексе. Подборку адресов и расстояния отдельно получаем из 2ГИС, если доступна геопозиция.</p>
     <button class="btn-outline" id="findServices" type="button">Найти по моей геопозиции</button>
     <p id="servicesStatus" role="status"></p>
     <iframe class="services-map" id="servicesMap" title="Кузовные автосервисы на Яндекс Картах" referrerpolicy="no-referrer" hidden></iframe>
@@ -2133,6 +2133,7 @@
     const services = document.getElementById('servicesWrap');
     if (services.hidden) {
       services.hidden = false;
+      showServicesMap();
       if (pageLocationRequest) loadServicesFromPageLocation();
     }
   }
@@ -2589,9 +2590,11 @@
     const url = new URL('https://yandex.ru/map-widget/v1/');
     url.searchParams.set('mode', 'search');
     url.searchParams.set('text', text);
-    url.searchParams.set('ll', longitude + ',' + latitude);
-    url.searchParams.set('z', '14');
-    map.src = url.href;
+    if (latitude != null && longitude != null) {
+      url.searchParams.set('ll', longitude + ',' + latitude);
+      url.searchParams.set('z', '14');
+    }
+    if (map.getAttribute('src') !== url.href) map.src = url.href;
     map.hidden = false;
   }
 
