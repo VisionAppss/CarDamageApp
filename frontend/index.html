@@ -601,7 +601,20 @@
     .btn-logout:hover { color: var(--black); }
 
     /* ── Paywall ── */
-    .admin-analysis .footnote { display: none; }
+    .admin-sticker {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 3px 9px;
+      border: 1px solid #a56622;
+      border-radius: 4px;
+      color: #713c0b;
+      background: #fff0d9;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .admin-sticker[hidden] { display: none; }
+    .admin-sticker:not([hidden]) + .header { padding-top: 18px; }
     .listing-import { margin-top: 16px; }
     .listing-controls { display: flex; flex-wrap: wrap; gap: 8px; }
     .listing-controls input { flex: 1 1 260px; min-width: 0; padding: 10px 12px; border: 1px solid var(--border); font: inherit; }
@@ -1214,6 +1227,7 @@
 <body>
 <div class="page">
 
+  <a class="admin-sticker" id="adminSticker" href="/admin.html?view=stats" hidden aria-label="Админка: открыть статистику и настройки сессии">Админка</a>
   <!-- Header -->
   <header class="header">
     <div class="header-inner">
@@ -1466,13 +1480,9 @@
   // ── Auth ──
   async function initAuth() {
     document.body.style.visibility = 'visible';
-    if (adminAnalysis) {
-      document.body.classList.add('admin-analysis');
-      return;
-    }
     const token = getSessionToken();
     if (!token) {
-      await checkPaymentReturn();
+      if (!adminAnalysis) await checkPaymentReturn();
       track('page_view');
       return;
     }
@@ -1483,14 +1493,14 @@
       if (!data.user) {
         // Сессия протухла — чистим
         try { localStorage.removeItem('ao_session'); } catch(e) {}
-        await checkPaymentReturn();
+        if (!adminAnalysis) await checkPaymentReturn();
         track('page_view');
         return;
       }
       currentUser    = data.user;
       currentProfile = data.user;
     } catch(e) {
-      await checkPaymentReturn();
+      if (!adminAnalysis) await checkPaymentReturn();
       track('page_view');
       return;
     }
@@ -1502,8 +1512,10 @@
     document.getElementById('userEmail').textContent = currentUser.email;
     updateAnalysesBadge();
 
-    await claimPendingAnalysis();
-    await checkPaymentReturn();
+    if (!adminAnalysis) {
+      await claimPendingAnalysis();
+      await checkPaymentReturn();
+    }
     track('page_view');
   }
 
@@ -2968,7 +2980,15 @@
   }
 
   // ── Init ──
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
+    if (adminAnalysis) {
+      const session = await fetch('/api/admin/session', { cache: 'no-store' }).catch(() => null);
+      if (!session?.ok) {
+        location.replace('/admin.html');
+        return;
+      }
+      document.getElementById('adminSticker').hidden = false;
+    }
     uploadZone    = document.getElementById('uploadZone');
     fileInput     = document.getElementById('fileInput');
     previewWrap   = document.getElementById('previewWrap');

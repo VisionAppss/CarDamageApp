@@ -28,8 +28,8 @@
   th { color: #888; font-weight: 500; }
   tr:last-child td { border-bottom: none; }
   .empty { color: #aaa; font-size: 13px; padding: 8px 0; }
-  .analysis-panel { margin-bottom: 20px; }
-  .analysis-frame { display: block; width: 100%; min-height: 420px; border: 0; }
+  .admin-nav { display: flex; align-items: center; gap: 12px; }
+  .admin-nav a { color: inherit; font-size: 13px; }
   button {
     font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid #ddd;
     background: #fff; cursor: pointer;
@@ -66,7 +66,10 @@
     <h1>Аналитика Carscan</h1>
     <div class="sub" id="ts"></div>
   </div>
-  <button id="logoutBtn" hidden onclick="AdminAuth.logout()">Выйти</button>
+  <div class="admin-nav">
+    <a id="analysisLink" href="/?admin=1" hidden>Страница анализа</a>
+    <button id="logoutBtn" hidden onclick="AdminAuth.logout()">Выйти</button>
+  </div>
 </div>
 
 <div id="loginBox" hidden>
@@ -86,33 +89,29 @@
 </div>
 
 <div id="state" hidden></div>
-<section class="card analysis-panel" id="analysisPanel" aria-labelledby="analysisTitle" hidden>
-  <h2 id="analysisTitle">Проверить автомобиль по фото</h2>
-  <iframe class="analysis-frame" id="analysisFrame" title="Загрузка фото и анализ автомобиля" allow="geolocation 'self'"></iframe>
-</section>
 <div class="grid" id="grid"></div>
 
 <script>
 var AdminAuth = (function () {
-  var analysisPanel = document.getElementById('analysisPanel');
-  var analysisFrame = document.getElementById('analysisFrame');
-  var analysisObserver;
-  analysisFrame.addEventListener('load', function () {
-    if (analysisObserver) analysisObserver.disconnect();
-    var content = analysisFrame.contentDocument?.querySelector('.page');
-    if (!content || analysisPanel.hidden) return;
-    function resize() {
-      analysisFrame.style.height = Math.ceil(content.getBoundingClientRect().bottom) + 24 + 'px';
-    }
-    analysisObserver = new ResizeObserver(resize);
-    analysisObserver.observe(content);
-    resize();
-  });
+  var statsView = new URLSearchParams(location.search).get('view') === 'stats';
 
-  function showAnalysis() {
-    if (!analysisPanel.hidden) return;
-    analysisPanel.hidden = false;
-    analysisFrame.src = '/?admin=1';
+  async function open() {
+    if (statsView) {
+      await Dashboard.load();
+      return;
+    }
+    try {
+      var res = await fetch('/api/admin/session', { cache: 'no-store' });
+      if (res.ok) {
+        location.replace('/?admin=1');
+        return;
+      }
+      showLogin();
+      if (res.status !== 403) setLoginMsg('Не удалось проверить вход. Попробуйте снова.', 'error');
+    } catch (e) {
+      showLogin();
+      setLoginMsg('Не удалось связаться с сервером. Попробуйте снова.', 'error');
+    }
   }
 
   function setLoginMsg(text, kind) {
@@ -122,9 +121,7 @@ var AdminAuth = (function () {
   }
 
   function showLogin() {
-    analysisPanel.hidden = true;
-    if (analysisObserver) analysisObserver.disconnect();
-    analysisFrame.removeAttribute('src');
+    document.getElementById('analysisLink').hidden = true;
     document.getElementById('loginBox').hidden = false;
     document.getElementById('logoutBtn').hidden = true;
     document.getElementById('state').hidden = true;
@@ -154,7 +151,7 @@ var AdminAuth = (function () {
       }
       passwordField.value = '';
       setLoginMsg('', '');
-      await Dashboard.load();
+      await open();
     } catch (e) {
       setLoginMsg('Сеть недоступна: ' + e.message, 'error');
     } finally {
@@ -176,7 +173,7 @@ var AdminAuth = (function () {
     }
   }
 
-  return { showLogin: showLogin, showAnalysis: showAnalysis, logout: logout };
+  return { showLogin: showLogin, open: open, logout: logout };
 })();
 
 var Dashboard = (function () {
@@ -230,7 +227,7 @@ var Dashboard = (function () {
 
     var data = await res.json();
     if (document.getElementById('logoutBtn').hidden) return;
-    AdminAuth.showAnalysis();
+    document.getElementById('analysisLink').hidden = false;
     setState('', false);
     document.getElementById('ts').textContent = 'Обновлено: ' + new Date().toLocaleString('ru-RU');
 
@@ -247,7 +244,7 @@ var Dashboard = (function () {
   return { load: load };
 })();
 
-Dashboard.load();
+AdminAuth.open();
 </script>
 
 </body>

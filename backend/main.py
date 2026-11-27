@@ -615,6 +615,11 @@ async def require_admin(request: Request) -> None:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
 
 
+@app.get("/admin/session", dependencies=[Depends(require_admin)], status_code=204)
+async def admin_session():
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+
 async def is_internal_request(request: Request) -> bool:
     if valid_admin_token(request.cookies.get(INTERNAL_METRICS_COOKIE, ''), 'metrics:'):
         return True
