@@ -1,7 +1,7 @@
 'use strict';
 
 window.carscanMetricsAllowed = (async () => {
-  if (new URLSearchParams(location.search).get('admin') === '1') return false;
+  if (location.pathname === '/admin/analysis' || new URLSearchParams(location.search).get('admin') === '1') return false;
 
   try {
     const response = await fetch('/api/metrics/context', {

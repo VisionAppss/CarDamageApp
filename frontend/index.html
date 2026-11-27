@@ -1221,7 +1221,7 @@
     .btn-login:hover { background: var(--black); color: var(--white); }
   </style>
   <meta name="yandex-verification" content="c65ee41bb12bb7ab" />
-  <script src="/metrics.js?v=1" defer></script>
+  <script src="/metrics.js?v=2" defer></script>
 
 </head>
 <body>
@@ -1414,7 +1414,8 @@
 
 <script>
   // ── Session token ──
-  const adminAnalysis = new URLSearchParams(location.search).get('admin') === '1';
+  const adminAnalysis = location.pathname === '/admin/analysis'
+    || new URLSearchParams(location.search).get('admin') === '1';
   function getSessionToken() { try { return localStorage.getItem('ao_session'); } catch(e) { return null; } }
   function sessionHeaders() { const t = getSessionToken(); return t ? { 'x-session-token': t } : {}; }
 

@@ -775,6 +775,19 @@ ANALYTICS_QUERIES = [
         WHERE NOT is_internal AND analyses_count >= 1 AND is_paid = FALSE
         ORDER BY created_at DESC
     """),
+    ("vision_tokens_30d", "Токены на пользовательские анализы за 30 дней", """
+        SELECT a.provider AS "провайдер", a.model AS "модель",
+               COUNT(*) AS "успешных анализов",
+               COUNT(*) FILTER (WHERE jsonb_typeof(r.result->'tokens_used') = 'number') AS "анализов с учётом токенов",
+               SUM(CASE WHEN jsonb_typeof(r.result->'tokens_used') = 'number'
+                        THEN (r.result->>'tokens_used')::numeric END) AS "всего токенов"
+        FROM analysis_attempts a
+        JOIN analysis_reports r ON r.id = a.id
+        WHERE NOT a.is_internal AND a.audience <> 'admin' AND NOT r.is_admin
+          AND a.http_status = 200 AND a.started_at > now() - interval '30 days'
+        GROUP BY a.provider, a.model
+        ORDER BY 1, 2
+    """),
     ("payments_summary", "Выручка за 30 дней (по статусу и типу)", """
         SELECT
           status AS "статус",

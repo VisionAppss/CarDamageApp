@@ -67,7 +67,7 @@
     <div class="sub" id="ts"></div>
   </div>
   <div class="admin-nav">
-    <a id="analysisLink" href="/?admin=1" hidden>Страница анализа</a>
+    <a id="analysisLink" href="/admin/analysis" hidden>Страница анализа</a>
     <button id="logoutBtn" hidden onclick="AdminAuth.logout()">Выйти</button>
   </div>
 </div>
@@ -103,7 +103,7 @@ var AdminAuth = (function () {
     try {
       var res = await fetch('/api/admin/session', { cache: 'no-store' });
       if (res.ok) {
-        location.replace('/?admin=1');
+        location.replace('/admin/analysis');
         return;
       }
       showLogin();
