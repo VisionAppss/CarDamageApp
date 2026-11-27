@@ -11,7 +11,7 @@ SELECT
   COUNT(*) FILTER (WHERE event = 'paywall_shown')      AS упёрлись_в_лимит,
   COUNT(DISTINCT user_id) FILTER (WHERE event = 'page_view') AS уникальных_пользователей
 FROM events
-WHERE created_at > now() - interval '30 days';
+WHERE NOT is_internal AND created_at > now() - interval '30 days';
 
 
 -- 2. ВОРОНКА конверсии
@@ -22,7 +22,7 @@ SELECT
   COUNT(*) FILTER (WHERE event = 'analyze_success')    AS "4. Получили результат",
   COUNT(*) FILTER (WHERE event = 'paywall_shown')      AS "5. Упёрлись в лимит"
 FROM events
-WHERE created_at > now() - interval '30 days';
+WHERE NOT is_internal AND created_at > now() - interval '30 days';
 
 
 -- 3. АКТИВНЫЕ ПОЛЬЗОВАТЕЛИ по дням (DAU)
@@ -30,7 +30,7 @@ SELECT
   date_trunc('day', created_at)::date AS день,
   COUNT(DISTINCT user_id) AS активных
 FROM events
-WHERE event = 'page_view'
+WHERE NOT is_internal AND event = 'page_view'
   AND created_at > now() - interval '30 days'
 GROUP BY день
 ORDER BY день DESC;
@@ -41,7 +41,7 @@ SELECT
   date_trunc('day', created_at)::date AS день,
   COUNT(*) AS новых
 FROM profiles
-WHERE created_at > now() - interval '30 days'
+WHERE NOT is_internal AND created_at > now() - interval '30 days'
 GROUP BY день
 ORDER BY день DESC;
 
@@ -52,7 +52,7 @@ SELECT
   COUNT(*) AS анализов,
   ROUND(AVG((result->'data'->'meta'->>'analysis_confidence')::numeric), 1) AS средняя_уверенность
 FROM analyses
-WHERE created_at > now() - interval '30 days'
+WHERE NOT is_internal AND created_at > now() - interval '30 days'
 GROUP BY качество_фото;
 
 
@@ -63,7 +63,7 @@ SELECT
   COUNT(*) AS встречается
 FROM analyses,
      jsonb_array_elements(result->'data'->'damages') AS dmg
-WHERE created_at > now() - interval '30 days'
+WHERE NOT is_internal AND created_at > now() - interval '30 days'
 GROUP BY тип, серьёзность
 ORDER BY встречается DESC
 LIMIT 15;
@@ -74,7 +74,7 @@ SELECT
   ROUND(AVG((result->'data'->'summary'->'total_estimated_cost'->>'min')::numeric)) AS средний_минимум,
   ROUND(AVG((result->'data'->'summary'->'total_estimated_cost'->>'max')::numeric)) AS средний_максимум
 FROM analyses
-WHERE created_at > now() - interval '30 days'
+WHERE NOT is_internal AND created_at > now() - interval '30 days'
   AND result->'data'->'summary'->'total_estimated_cost' IS NOT NULL;
 
 
@@ -90,7 +90,7 @@ ORDER BY анализов;
 -- 9. ОШИБКИ — последние 20
 SELECT created_at, params->>'message' AS ошибка, ua
 FROM events
-WHERE event = 'analyze_error'
+WHERE NOT is_internal AND event = 'analyze_error'
 ORDER BY created_at DESC
 LIMIT 20;
 
@@ -98,5 +98,5 @@ LIMIT 20;
 -- 10. ПОЛЬЗОВАТЕЛИ близкие к лимиту (для таргетинга)
 SELECT email, analyses_count, is_paid, created_at
 FROM profiles
-WHERE analyses_count >= 1 AND is_paid = FALSE
+WHERE NOT is_internal AND analyses_count >= 1 AND is_paid = FALSE
 ORDER BY created_at DESC;

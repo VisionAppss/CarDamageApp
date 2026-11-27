@@ -11,6 +11,7 @@ import hmac
 import json
 import logging
 import math
+import socket
 import os
 import uuid
 import secrets
@@ -22,6 +23,7 @@ logger = logging.getLogger("uvicorn.error")
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from ipaddress import ip_address
 from datetime import datetime, timedelta
 from typing import List, Optional, Literal
 from urllib.parse import urlsplit
@@ -66,6 +68,15 @@ ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', '')
 ADMIN_PASSWORD_HASH = os.getenv('ADMIN_PASSWORD_HASH', '')
 ADMIN_SESSION_COOKIE = 'carscan_admin_session'
 ADMIN_COOKIE_PATH = '/api/admin/'
+INTERNAL_METRICS_COOKIE = 'carscan_internal_metrics'
+INTERNAL_METRICS_IPS = set()
+for item in os.getenv('CARSCAN_INTERNAL_IPS', '').split(','):
+    if item.strip():
+        try:
+            INTERNAL_METRICS_IPS.add(str(ip_address(item.strip())))
+        except ValueError:
+            logger.warning("Ignoring an invalid address in CARSCAN_INTERNAL_IPS")
+METRICS_PROXY_HOST = os.getenv('CARSCAN_METRICS_PROXY_HOST', '').strip()
 ADMIN_SESSION_SECONDS = 3600
 
 try:
@@ -381,6 +392,12 @@ async def startup():
                 content BYTEA NOT NULL,
                 PRIMARY KEY (analysis_id, photo_number)
             );
+            ALTER TABLE events ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT FALSE;
+            ALTER TABLE analyses ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT FALSE;
+            ALTER TABLE analysis_attempts ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT FALSE;
+            ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT FALSE;
+            ALTER TABLE payments ADD COLUMN IF NOT EXISTS is_internal BOOLEAN NOT NULL DEFAULT FALSE;
+            UPDATE analysis_attempts SET is_internal = TRUE WHERE audience = 'admin' AND NOT is_internal;
         """)
 
 
@@ -585,14 +602,40 @@ def sign_admin_session(payload: str) -> str:
     return hmac.new(ADMIN_DIGEST, f'admin:{ADMIN_USERNAME}:{payload}'.encode(), 'sha256').hexdigest()
 
 
-async def require_admin(request: Request) -> None:
-    token = request.cookies.get(ADMIN_SESSION_COOKIE, '')
+def valid_admin_token(token: str, prefix: str = '') -> bool:
     if ADMIN_USERNAME and ADMIN_DIGEST and len(token) <= 128:
         expires, _, signature = token.partition('.')
         if expires.isascii() and expires.isdecimal() and int(expires) > time.time():
-            if secrets.compare_digest(signature.encode(), sign_admin_session(expires).encode()):
-                return
-    raise HTTPException(status_code=403, detail="Доступ запрещён")
+            return secrets.compare_digest(signature.encode(), sign_admin_session(prefix + expires).encode())
+    return False
+
+
+async def require_admin(request: Request) -> None:
+    if not valid_admin_token(request.cookies.get(ADMIN_SESSION_COOKIE, '')):
+        raise HTTPException(status_code=403, detail="Доступ запрещён")
+
+
+async def is_internal_request(request: Request) -> bool:
+    if valid_admin_token(request.cookies.get(INTERNAL_METRICS_COOKIE, ''), 'metrics:'):
+        return True
+    if not INTERNAL_METRICS_IPS or request.client is None:
+        return False
+    try:
+        peer = ip_address(request.client.host)
+        if METRICS_PROXY_HOST and request.headers.get('X-Real-IP'):
+            # Nginx overwrites X-Real-IP. Direct backend clients cannot supply it.
+            proxies = await asyncio.get_running_loop().getaddrinfo(METRICS_PROXY_HOST, None, type=socket.SOCK_STREAM)
+            if any(peer == ip_address(entry[4][0]) for entry in proxies):
+                peer = ip_address(request.headers['X-Real-IP'])
+        return str(peer) in INTERNAL_METRICS_IPS
+    except (ValueError, OSError):
+        return False
+
+
+@app.get("/metrics/context")
+async def metrics_context(request: Request, response: Response):
+    response.headers['Cache-Control'] = 'no-store'
+    return {"internal": await is_internal_request(request)}
 
 
 @app.post("/admin/login")
@@ -615,6 +658,10 @@ async def admin_login(data: AdminLogin, response: Response):
         max_age=ADMIN_SESSION_SECONDS, path=ADMIN_COOKIE_PATH,
         secure=True, httponly=True, samesite='strict',
     )
+    response.set_cookie(
+        INTERNAL_METRICS_COOKIE, f'{expires}.{sign_admin_session("metrics:" + expires)}',
+        max_age=ADMIN_SESSION_SECONDS, path='/api/', secure=True, httponly=True, samesite='strict',
+    )
     response.headers['Cache-Control'] = 'no-store'
     return {"ok": True}
 
@@ -624,6 +671,7 @@ async def admin_logout(response: Response):
     response.delete_cookie(
         ADMIN_SESSION_COOKIE, path=ADMIN_COOKIE_PATH, secure=True, httponly=True, samesite='strict',
     )
+    response.delete_cookie(INTERNAL_METRICS_COOKIE, path='/api/', secure=True, httponly=True, samesite='strict')
     response.headers['Cache-Control'] = 'no-store'
     return {"ok": True}
 
@@ -640,7 +688,7 @@ ANALYTICS_QUERIES = [
           COUNT(*) FILTER (WHERE event = 'paywall_shown')      AS "упёрлись_в_лимит",
           COUNT(DISTINCT user_id) FILTER (WHERE event = 'page_view') AS "уникальных_пользователей"
         FROM events
-        WHERE created_at > now() - interval '30 days'
+        WHERE NOT is_internal AND created_at > now() - interval '30 days'
     """),
     ("funnel_30d", "Воронка конверсии", """
         SELECT
@@ -650,14 +698,14 @@ ANALYTICS_QUERIES = [
           COUNT(*) FILTER (WHERE event = 'analyze_success')    AS "4. Получили результат",
           COUNT(*) FILTER (WHERE event = 'paywall_shown')      AS "5. Упёрлись в лимит"
         FROM events
-        WHERE created_at > now() - interval '30 days'
+        WHERE NOT is_internal AND created_at > now() - interval '30 days'
     """),
     ("dau", "Активные пользователи по дням (DAU)", """
         SELECT
           date_trunc('day', created_at)::date AS "день",
           COUNT(DISTINCT user_id) AS "активных"
         FROM events
-        WHERE event = 'page_view'
+        WHERE NOT is_internal AND event = 'page_view'
           AND created_at > now() - interval '30 days'
         GROUP BY 1
         ORDER BY 1 DESC
@@ -667,7 +715,7 @@ ANALYTICS_QUERIES = [
           date_trunc('day', created_at)::date AS "день",
           COUNT(*) AS "новых"
         FROM profiles
-        WHERE created_at > now() - interval '30 days'
+        WHERE NOT is_internal AND created_at > now() - interval '30 days'
         GROUP BY 1
         ORDER BY 1 DESC
     """),
@@ -677,7 +725,7 @@ ANALYTICS_QUERIES = [
           COUNT(*) AS "анализов",
           ROUND(AVG((result->'data'->'meta'->>'analysis_confidence')::numeric), 1) AS "средняя_уверенность"
         FROM analyses
-        WHERE created_at > now() - interval '30 days'
+        WHERE NOT is_internal AND created_at > now() - interval '30 days'
         GROUP BY 1
     """),
     ("top_damages", "Повреждения: самые частые типы", """
@@ -687,7 +735,7 @@ ANALYTICS_QUERIES = [
           COUNT(*) AS "встречается"
         FROM analyses,
              jsonb_array_elements(result->'data'->'damages') AS dmg
-        WHERE created_at > now() - interval '30 days'
+        WHERE NOT is_internal AND created_at > now() - interval '30 days'
         GROUP BY 1, 2
         ORDER BY 3 DESC
         LIMIT 15
@@ -697,7 +745,7 @@ ANALYTICS_QUERIES = [
           ROUND(AVG((result->'data'->'summary'->'total_estimated_cost'->>'min')::numeric)) AS "средний_минимум",
           ROUND(AVG((result->'data'->'summary'->'total_estimated_cost'->>'max')::numeric)) AS "средний_максимум"
         FROM analyses
-        WHERE created_at > now() - interval '30 days'
+        WHERE NOT is_internal AND created_at > now() - interval '30 days'
           AND result->'data'->'summary'->'total_estimated_cost' IS NOT NULL
     """),
     ("retention", "Retention: пользователи сделавшие >1 анализа", """
@@ -705,20 +753,21 @@ ANALYTICS_QUERIES = [
           analyses_count AS "анализов",
           COUNT(*) AS "пользователей"
         FROM profiles
+        WHERE NOT is_internal
         GROUP BY 1
         ORDER BY 1
     """),
     ("recent_errors", "Последние 20 ошибок", """
         SELECT created_at, params->>'message' AS "ошибка", ua
         FROM events
-        WHERE event = 'analyze_error'
+        WHERE NOT is_internal AND event = 'analyze_error'
         ORDER BY created_at DESC
         LIMIT 20
     """),
     ("near_limit_users", "Пользователи близкие к лимиту", """
         SELECT email, analyses_count, is_paid, created_at
         FROM profiles
-        WHERE analyses_count >= 1 AND is_paid = FALSE
+        WHERE NOT is_internal AND analyses_count >= 1 AND is_paid = FALSE
         ORDER BY created_at DESC
     """),
     ("payments_summary", "Выручка за 30 дней (по статусу и типу)", """
@@ -728,7 +777,7 @@ ANALYTICS_QUERIES = [
           COUNT(*) AS "платежей",
           SUM(amount) AS "сумма_руб"
         FROM payments
-        WHERE created_at > now() - interval '30 days'
+        WHERE NOT is_internal AND created_at > now() - interval '30 days'
         GROUP BY status, type
         ORDER BY status, type
     """),
@@ -779,7 +828,8 @@ async def auth_send_code(data: SendCodeRequest):
 
 
 @app.post("/auth/verify-code")
-async def auth_verify_code(data: VerifyCodeRequest):
+async def auth_verify_code(data: VerifyCodeRequest, request: Request):
+    internal = await is_internal_request(request)
     email = data.email.lower().strip()
     async with app.state.pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -793,8 +843,8 @@ async def auth_verify_code(data: VerifyCodeRequest):
         if not profile:
             user_id = str(uuid.uuid4())
             await conn.execute(
-                "INSERT INTO profiles (id, email, consent_given) VALUES ($1, $2, TRUE)",
-                user_id, email
+                "INSERT INTO profiles (id, email, consent_given, is_internal) VALUES ($1, $2, TRUE, $3)",
+                user_id, email, internal
             )
         else:
             user_id = profile["id"]
@@ -827,14 +877,15 @@ async def auth_logout(x_session_token: Optional[str] = Header(None)):
 
 
 @app.post("/profile")
-async def upsert_profile(data: ProfileUpsert):
+async def upsert_profile(data: ProfileUpsert, request: Request):
     """Создать или обновить профиль пользователя после входа."""
+    internal = await is_internal_request(request)
     async with app.state.pool.acquire() as conn:
         await conn.execute("""
-            INSERT INTO profiles (id, email)
-            VALUES ($1, $2)
+            INSERT INTO profiles (id, email, is_internal)
+            VALUES ($1, $2, $3)
             ON CONFLICT (id) DO NOTHING
-        """, data.user_id, data.email)
+        """, data.user_id, data.email, internal)
     return {"ok": True}
 
 
@@ -902,13 +953,14 @@ async def get_analyses(user_id: str, limit: int = 20, x_session_token: Optional[
 
 
 @app.post("/event")
-async def log_event(data: EventLog):
+async def log_event(data: EventLog, request: Request):
     """Записать аналитическое событие."""
+    internal = await is_internal_request(request)
     async with app.state.pool.acquire() as conn:
         await conn.execute("""
-            INSERT INTO events (event, params, user_id, url, ua)
-            VALUES ($1, $2, $3, $4, $5)
-        """, data.event, json.dumps(data.params), data.user_id, data.url, data.ua)
+            INSERT INTO events (event, params, user_id, url, ua, is_internal)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        """, data.event, json.dumps(data.params), data.user_id, data.url, data.ua, internal)
     return {"ok": True}
 
 @app.post("/feedback")
@@ -1035,6 +1087,7 @@ async def parts_quote(data: PartPriceRequest, response: Response):
 
 @app.post("/analyze")
 async def analyze_image(
+    request: Request,
     file: UploadFile = File(...),
     extra_files: List[UploadFile] = File(default=[]),
     inspection_type: str = Form(default="страховой случай"),
@@ -1042,7 +1095,10 @@ async def analyze_image(
 ):
     """Анализ фото. Гость — без токена, авторизованный — с x-session-token."""
     current_user = await resolve_session(x_session_token, app.state.pool)
-    return await record_analysis(file, inspection_type, extra_files, current_user=current_user)
+    return await record_analysis(
+        file, inspection_type, extra_files, current_user=current_user,
+        internal=await is_internal_request(request),
+    )
 
 
 @app.post("/admin/analyze", dependencies=[Depends(require_admin)])
@@ -1056,22 +1112,23 @@ async def admin_analyze_image(
 
 async def record_analysis(
     file: UploadFile, inspection_type: str, extra_files: List[UploadFile],
-    *, current_user: Optional[dict] = None, full_report: bool = False,
+    *, current_user: Optional[dict] = None, full_report: bool = False, internal: bool = False,
 ):
     report_id = uuid.uuid4()
+    internal = internal or full_report
     start = time.monotonic()
     async with app.state.pool.acquire() as conn:
         await conn.execute("""
-            INSERT INTO analysis_attempts (id, user_id, audience, provider, model, inspection_type, photo_count)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO analysis_attempts (id, user_id, audience, provider, model, inspection_type, photo_count, is_internal)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         """, report_id, current_user["id"] if current_user else None,
             "admin" if full_report else "account" if current_user else "guest",
-            VISION_PROVIDER, vision_model, inspection_type, 1 + len(extra_files))
+            VISION_PROVIDER, vision_model, inspection_type, 1 + len(extra_files), internal)
     status, error_code = 200, None
     try:
         return await run_analysis(
             file, inspection_type, extra_files, report_id=report_id,
-            current_user=current_user, full_report=full_report,
+            current_user=current_user, full_report=full_report, internal=internal,
         )
     except HTTPException as exc:
         status = exc.status_code
@@ -1099,7 +1156,7 @@ async def record_analysis(
 
 async def run_analysis(
     file: UploadFile, inspection_type: str, extra_files: List[UploadFile],
-    *, report_id: uuid.UUID, current_user: Optional[dict], full_report: bool,
+    *, report_id: uuid.UUID, current_user: Optional[dict], full_report: bool, internal: bool,
 ):
     if len(extra_files) >= MAX_PHOTOS:
         raise HTTPException(status_code=400, detail=f"Загрузите не более {MAX_PHOTOS} фото")
@@ -1220,14 +1277,14 @@ async def run_analysis(
         )
         if current_user:
             await conn.execute("""
-                INSERT INTO analyses (user_id, result, photo_name, inspection_type, photo_data, photo_mime)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO analyses (user_id, result, photo_name, inspection_type, photo_data, photo_mime, is_internal)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
             """, current_user["id"], json.dumps(result), file.filename, inspection_type,
-                 base64_image, file.content_type)
-            await conn.execute(
-                "UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1",
-                current_user["id"]
-            )
+                 base64_image, file.content_type, internal)
+            if not internal:
+                await conn.execute(
+                    "UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1", current_user["id"],
+                )
 
     return JSONResponse({**result, "pdf_unlocked": full_report}, headers={"Cache-Control": "no-store"})
 
@@ -1240,12 +1297,17 @@ class AnalysisSaveRequest(BaseModel):
 
 
 @app.post("/analysis/save")
-async def save_pending_analysis(data: AnalysisSaveRequest, x_session_token: Optional[str] = Header(None)):
+async def save_pending_analysis(data: AnalysisSaveRequest, request: Request, x_session_token: Optional[str] = Header(None)):
     """Сохраняет результат анализа, сделанного гостем, после его авторизации."""
     user = await resolve_session(x_session_token, app.state.pool)
     if not user or user["id"] != data.user_id:
         raise HTTPException(status_code=403, detail="Доступ запрещён")
-    async with app.state.pool.acquire() as conn:
+    internal = await is_internal_request(request)
+    async with app.state.pool.acquire() as conn, conn.transaction():
+        if not internal and data.result.get("report_id"):
+            internal = bool(await conn.fetchval(
+                "SELECT is_internal FROM analysis_attempts WHERE id::text = $1", str(data.result["report_id"]),
+            ))
         profile = await conn.fetchrow(
             "SELECT email FROM profiles WHERE id = $1",
             data.user_id
@@ -1254,20 +1316,19 @@ async def save_pending_analysis(data: AnalysisSaveRequest, x_session_token: Opti
             raise HTTPException(status_code=404, detail="Профиль не найден")
 
         await conn.execute("""
-            INSERT INTO analyses (user_id, result, photo_name, inspection_type)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO analyses (user_id, result, photo_name, inspection_type, is_internal)
+            VALUES ($1, $2, $3, $4, $5)
         """, data.user_id, json.dumps(data.result),
-             data.photo_name, data.inspection_type or "страховой случай")
+             data.photo_name, data.inspection_type or "страховой случай", internal)
 
-        await conn.execute("""
-            UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1
-        """, data.user_id)
+        if not internal:
+            await conn.execute("UPDATE profiles SET analyses_count = analyses_count + 1 WHERE id = $1", data.user_id)
 
     return {"ok": True}
 
 
 @app.post("/payment/create")
-async def create_payment(data: PaymentCreateRequest):
+async def create_payment(data: PaymentCreateRequest, request: Request):
     """Создаёт платёж YooKassa и возвращает URL для оплаты."""
     if not YOOKASSA_SHOP_ID or not YOOKASSA_SECRET:
         raise HTTPException(status_code=503, detail="Оплата временно недоступна")
@@ -1317,12 +1378,13 @@ async def create_payment(data: PaymentCreateRequest):
         raise HTTPException(status_code=502, detail=f"Ошибка ЮКасса: {e}")
 
     if data.user_id and not data.report_id:
+        internal = await is_internal_request(request)
         async with app.state.pool.acquire() as conn:
             await conn.execute("""
-                INSERT INTO payments (id, user_id, status, amount, type)
-                VALUES ($1, $2, $3, $4, $5)
+                INSERT INTO payments (id, user_id, status, amount, type, is_internal)
+                VALUES ($1, $2, $3, $4, $5, $6)
                 ON CONFLICT (id) DO NOTHING
-            """, payment.id, data.user_id, payment.status, float(price), ptype)
+            """, payment.id, data.user_id, payment.status, float(price), ptype, internal)
 
     return {
         "payment_id": payment.id,
